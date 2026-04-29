@@ -1,0 +1,31 @@
+---
+title: Payments API
+---
+
+# Payments
+
+`POST /payments` creates a new payment intent. Requires **billing** scope on the **access_token**.
+
+## Create payment intent
+
+The request body includes **amount**, **currency**, and **customer** reference. Optional fields cover **payment_method**, **metadata**, and **idempotency_key** for safe retries. Validation errors return **400** with a machine-readable error code.
+
+Successful creation returns **201** with **id**, **status**, and client_secret fields needed for confirming payment on the client when using hosted flows.
+
+## Capture and cancel
+
+Depending on your integration model, you may capture funds in a separate step or automatically after authorization. `POST /payments/{id}/capture` finalizes an authorized amount up to the original intent limit.
+
+`POST /payments/{id}/cancel` voids an uncaptured intent or triggers refunds according to scheme rules when already captured.
+
+## Webhooks
+
+Subscribe to **payment_intent.succeeded**, **payment_intent.failed**, and related events to drive your fulfillment pipeline. Verify webhook signatures using the signing secret from the dashboard. See webhooks documentation for asynchronous payment status updates and retry semantics.
+
+## Billing scope
+
+Endpoints that move money or expose full payment instrument details require the **billing** scope. Read-only status checks may be available with narrower scopes where documented.
+
+## Error handling
+
+Retry **409** conflicts only after fetching the latest server state. For **402** and gateway declines, surface user-facing messages from the `decline_code` when present without leaking raw processor payloads.

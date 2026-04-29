@@ -1,0 +1,40 @@
+---
+title: OAuth
+---
+
+# OAuth
+
+Use the **access_token** from the OAuth flow to authenticate API requests.
+
+## Overview
+
+OAuth 2.0 is the recommended way for third-party applications to access user data without handling passwords directly. Our platform supports the authorization code flow with PKCE for public clients and the standard authorization code flow for confidential clients.
+
+Start by registering your application in the developer console. You will receive a **client_id** and, for confidential clients, a **client_secret**. Store secrets securely and never commit them to source control.
+
+## Authorization request
+
+Redirect the user to the authorization endpoint with the following query parameters:
+
+- `response_type=code`
+- `client_id` — issued when you register the app
+- `redirect_uri` — must match a URI registered for the application
+- `scope` — space-separated list of permission scopes
+- `state` — random value to prevent CSRF; validate on return
+- `code_challenge` and `code_challenge_method` — required for PKCE public clients
+
+The user reviews consent and is redirected back to your **redirect_uri** with a short-lived **authorization code** and the same **state** value you sent.
+
+## Token exchange
+
+Exchange the authorization code at the token endpoint using a `POST` request with `application/x-www-form-urlencoded` body. Include **code**, **redirect_uri**, **client_id**, and **client_secret** (if applicable). For PKCE, include **code_verifier** matching the earlier **code_challenge**.
+
+The response contains an **access_token**, a **refresh_token** (when offline access is requested), and an **expires_in** value in seconds. The access token is presented as a Bearer token in the `Authorization` header for API calls.
+
+## Refreshing tokens
+
+When the access token expires, use the refresh token at the token endpoint with `grant_type=refresh_token`. Refresh tokens may be rotated; always persist the latest refresh token returned by the server.
+
+## Security notes
+
+Never log full **access_token** or **refresh_token** values. Rotate client secrets if a confidential client secret is exposed. Use short-lived access tokens and rely on refresh tokens for long sessions only when appropriate for your threat model.

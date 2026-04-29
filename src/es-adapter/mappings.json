@@ -1,0 +1,14 @@
+{
+  "dynamic": false,
+  "properties": {
+    "slug": { "type": "keyword" },
+    "chunk_index": { "type": "integer" },
+    "content": {
+      "type": "text",
+      "fields": {
+        "pattern": { "type": "wildcard" }
+      }
+    },
+    "updated_at": { "type": "date" }
+  }
+}

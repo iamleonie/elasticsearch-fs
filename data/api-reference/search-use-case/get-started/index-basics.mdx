@@ -1,0 +1,417 @@
+---
+title: Index and search basics
+description: This quickstart provides a hands-on introduction to the fundamental concepts of Elasticsearch: indices, documents, and field type mappings. You'll learn...
+url: https://www.elastic.co/docs/solutions/search/get-started/index-basics
+products:
+  - Elastic Cloud Enterprise
+  - Elastic Cloud Hosted
+  - Elastic Cloud Serverless
+  - Elastic Cloud on Kubernetes
+  - Elasticsearch
+applies_to:
+  - Elastic Cloud Serverless: Generally available
+  - Elastic Stack: Generally available
+---
+
+# Index and search basics
+This quickstart provides a hands-on introduction to the fundamental concepts of Elasticsearch: [indices, documents, and field type mappings](https://www.elastic.co/docs/manage-data/data-store/index-basics). You'll learn how to create an index, add documents, work with dynamic and explicit mappings, and perform your first basic searches.
+<tip>
+  The code examples are in [Console](https://www.elastic.co/docs/explore-analyze/query-filter/tools/console) syntax by default.
+  You can [convert into other programming languages](/docs/explore-analyze/query-filter/tools/console#import-export-console-requests) in the Console UI.
+</tip>
+
+
+## Requirements
+
+You can follow this guide using any Elasticsearch deployment.
+To see all deployment options, refer to [Deploy > Choosing your deployment type](/docs/deploy-manage/deploy#choosing-your-deployment-type).
+To get started quickly, spin up a cluster [locally in Docker](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/local-development-installation-quickstart).
+
+## Add data to Elasticsearch
+
+<tip>
+  This quickstart uses Elasticsearch APIs, but there are many other ways to [add data to Elasticsearch](https://www.elastic.co/docs/solutions/search/ingest-for-search).
+</tip>
+
+You add data to Elasticsearch as JSON objects called documents.
+Elasticsearch stores these documents in searchable indices.
+<stepper>
+  <step title="Create an index">
+    Create a new index named `books`:
+    ```json
+    ```
+    The following response indicates the index was created successfully.
+    <dropdown title="Example response">
+      ```json
+      {
+        "acknowledged": true,
+        "shards_acknowledged": true,
+        "index": "books"
+      }
+      ```
+    </dropdown>
+  </step>
+
+  <step title="Add a single document">
+    Use the following request to add a single document to the `books` index.
+    If the index doesn't already exist, this request will automatically create it.
+    ```json
+
+    {
+      "name": "Snow Crash",
+      "author": "Neal Stephenson",
+      "release_date": "1992-06-01",
+      "page_count": 470
+    }
+    ```
+    The response includes metadata that Elasticsearch generates for the document, including a unique `_id` for the document within the index.
+    <dropdown title="Example response">
+      ```json
+      {
+        "_index": "books", 
+        "_id": "O0lG2IsBaSa7VYx_rEia", 
+        "_version": 1, 
+        "result": "created", 
+        "_shards": { 
+          "total": 2, 
+          "successful": 2, 
+          "failed": 0 
+        },
+        "_seq_no": 0, 
+        "_primary_term": 1 
+      }
+      ```
+    </dropdown>
+  </step>
+
+  <step title="Add multiple documents">
+    Use the [`_bulk` endpoint](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-bulk) to add multiple documents in a single request.
+    Bulk data must be formatted as newline-delimited JSON (NDJSON).
+    ```json
+
+    { "index" : { "_index" : "books" } }
+    {"name": "Revelation Space", "author": "Alastair Reynolds", "release_date": "2000-03-15", "page_count": 585}
+    { "index" : { "_index" : "books" } }
+    {"name": "1984", "author": "George Orwell", "release_date": "1985-06-01", "page_count": 328}
+    { "index" : { "_index" : "books" } }
+    {"name": "Fahrenheit 451", "author": "Ray Bradbury", "release_date": "1953-10-15", "page_count": 227}
+    { "index" : { "_index" : "books" } }
+    {"name": "Brave New World", "author": "Aldous Huxley", "release_date": "1932-06-01", "page_count": 268}
+    { "index" : { "_index" : "books" } }
+    {"name": "The Handmaids Tale", "author": "Margaret Atwood", "release_date": "1985-06-01", "page_count": 311}
+    ```
+    You should receive a response indicating there were no errors.
+    <dropdown title="Example response">
+      ```json
+      {
+        "errors": false,
+        "took": 29,
+        "items": [
+          {
+            "index": {
+              "_index": "books",
+              "_id": "QklI2IsBaSa7VYx_Qkh-",
+              "_version": 1,
+              "result": "created",
+              "_shards": {
+                "total": 2,
+                "successful": 2,
+                "failed": 0
+              },
+              "_seq_no": 1,
+              "_primary_term": 1,
+              "status": 201
+            }
+          },
+          {
+            "index": {
+              "_index": "books",
+              "_id": "Q0lI2IsBaSa7VYx_Qkh-",
+              "_version": 1,
+              "result": "created",
+              "_shards": {
+                "total": 2,
+                "successful": 2,
+                "failed": 0
+              },
+              "_seq_no": 2,
+              "_primary_term": 1,
+              "status": 201
+            }
+          },
+          {
+            "index": {
+              "_index": "books",
+              "_id": "RElI2IsBaSa7VYx_Qkh-",
+              "_version": 1,
+              "result": "created",
+              "_shards": {
+                "total": 2,
+                "successful": 2,
+                "failed": 0
+              },
+              "_seq_no": 3,
+              "_primary_term": 1,
+              "status": 201
+            }
+          },
+          {
+            "index": {
+              "_index": "books",
+              "_id": "RUlI2IsBaSa7VYx_Qkh-",
+              "_version": 1,
+              "result": "created",
+              "_shards": {
+                "total": 2,
+                "successful": 2,
+                "failed": 0
+              },
+              "_seq_no": 4,
+              "_primary_term": 1,
+              "status": 201
+            }
+          },
+          {
+            "index": {
+              "_index": "books",
+              "_id": "RklI2IsBaSa7VYx_Qkh-",
+              "_version": 1,
+              "result": "created",
+              "_shards": {
+                "total": 2,
+                "successful": 2,
+                "failed": 0
+              },
+              "_seq_no": 5,
+              "_primary_term": 1,
+              "status": 201
+            }
+          }
+        ]
+      }
+      ```
+    </dropdown>
+  </step>
+
+  <step title="Use dynamic mapping">
+    [Mappings](/docs/manage-data/data-store/index-basics#elasticsearch-intro-documents-fields-mappings) define how data is stored and indexed in Elasticsearch, like a schema in a relational database.If you use dynamic mapping, Elasticsearch automatically creates mappings for new fields.
+    The documents you've added so far have used dynamic mapping, because you didn't specify a mapping while creating the index.To see how dynamic mapping works, add a new document to the `books` index with a field that isn't available in the existing documents.
+    ```json
+
+    {
+      "name": "The Great Gatsby",
+      "author": "F. Scott Fitzgerald",
+      "release_date": "1925-04-10",
+      "page_count": 180,
+      "language": "EN" <1>
+    }
+    ```
+    View the mapping for the `books` index with the [get mapping API](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-indices-get-mapping).
+    The new field `language` has been added to the mapping with a `text` data type.
+    ```json
+    ```
+    The following response displays the mappings that were created by Elasticsearch.
+    <dropdown title="Example response">
+      ```json
+      {
+        "books": {
+          "mappings": {
+            "properties": {
+              "author": {
+                "type": "text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256
+                  }
+                }
+              },
+              "name": {
+                "type": "text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256
+                  }
+                }
+              },
+              "language": {
+                "type": "text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256
+                  }
+                }
+              },
+              "page_count": {
+                "type": "long"
+              },
+              "release_date": {
+                "type": "date"
+              }
+            }
+          }
+        }
+      }
+      ```
+    </dropdown>
+  </step>
+
+  <step title="Define explicit mapping">
+    Create an index named `my-explicit-mappings-books` and specify the mappings yourself.
+    Pass each field's properties as a JSON object.
+    This object should contain the [field data type](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/field-data-types) and any additional [mapping parameters](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/mapping-parameters).
+    ```json
+
+    {
+      "mappings": {
+        "dynamic": false,  <1>
+        "properties": {  <2>
+          "name": { "type": "text" },
+          "author": { "type": "text" },
+          "release_date": { "type": "date", "format": "yyyy-MM-dd" },
+          "page_count": { "type": "integer" }
+        }
+      }
+    }
+    ```
+    The following response indicates a successful operation.
+    <dropdown title="Example response">
+      ```json
+      {
+        "acknowledged": true,
+        "shards_acknowledged": true,
+        "index": "my-explicit-mappings-books"
+      }
+      ```
+    </dropdown>
+    Explicit mappings are defined at index creation, and documents must conform to these mappings.
+    You can also use the [update mapping API](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-indices-put-mapping).
+    When an index has the `dynamic` flag set to `true`, you can add new fields to documents without updating the mapping, which allows you to combine explicit and dynamic mappings.
+    Learn more about [managing and updating mappings](/docs/manage-data/data-store/mapping#mapping-manage-update).
+  </step>
+</stepper>
+
+
+## Search your data
+
+Indexed documents are available for search in near real-time, using the [`_search` API](https://www.elastic.co/docs/solutions/search/querying-for-search).
+<stepper>
+  <step title="Search all documents">
+    Use the following request to search all documents in the `books` index:
+    ```json
+    ```
+
+    <dropdown title="Example response">
+      ```json
+      {
+        "took": 2, 
+        "timed_out": false, 
+        "_shards": { 
+          "total": 5,
+          "successful": 5,
+          "skipped": 0,
+          "failed": 0
+        },
+        "hits": { 
+          "total": { 
+            "value": 7,
+            "relation": "eq"
+          },
+          "max_score": 1, 
+          "hits": [
+            {
+              "_index": "books", 
+              "_id": "CwICQpIBO6vvGGiC_3Ls", 
+              "_score": 1, 
+              "_source": { 
+                "name": "Brave New World",
+                "author": "Aldous Huxley",
+                "release_date": "1932-06-01",
+                "page_count": 268
+              }
+            },
+            ... (truncated)
+          ]
+        }
+      }
+      ```
+    </dropdown>
+  </step>
+
+  <step title="Search with a match query">
+    Use the [`match` query](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-match-query) to search for documents that contain a specific value in a specific field. This is the standard query for full-text searches.Use the following request to search the `books` index for documents containing `brave` in the `name` field:
+    ```json
+
+    {
+      "query": {
+        "match": {
+          "name": "brave"
+        }
+      }
+    }
+    ```
+
+    <tip>
+      This example uses [Query DSL](https://www.elastic.co/docs/explore-analyze/query-filter/languages/querydsl), which is the primary query language for Elasticsearch.
+    </tip>
+
+    <dropdown title="Example response">
+      ```json
+      {
+        "took": 9,
+        "timed_out": false,
+        "_shards": {
+          "total": 5,
+          "successful": 5,
+          "skipped": 0,
+          "failed": 0
+        },
+        "hits": {
+          "total": {
+            "value": 1,
+            "relation": "eq"
+          },
+          "max_score": 0.6931471, 
+          "hits": [
+            {
+              "_index": "books",
+              "_id": "CwICQpIBO6vvGGiC_3Ls",
+              "_score": 0.6931471,
+              "_source": {
+                "name": "Brave New World",
+                "author": "Aldous Huxley",
+                "release_date": "1932-06-01",
+                "page_count": 268
+              }
+            }
+          ]
+        }
+      }
+      ```
+    </dropdown>
+  </step>
+</stepper>
+
+
+## Delete your indices
+
+If you want to delete an index to start from scratch at any point, use the [delete index API](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-indices-delete).
+For example, use the following request to delete the indices created in this quickstart:
+```json
+```
+
+<warning>
+  Deleting an index permanently deletes its documents, shards, and metadata.
+</warning>
+
+
+## Next steps
+
+This quickstart introduced the basics of creating indices, adding data, and performing basic searches with Elasticsearch.
+To try out similar steps from the Elasticsearch Python client, go to [Build your first search query with Python](https://www.elastic.co/docs/solutions/search/get-started/keyword-search-python).
+The following resources will help you understand Elasticsearch concepts better and dive into the basics of query languages for searching data:
+- [Fundamentals of Elasticsearch](https://www.elastic.co/docs/manage-data/data-store)
+- [Search and filter with Query DSL](https://www.elastic.co/docs/reference/query-languages/query-dsl/full-text-filter-tutorial)
+- [Search using ES|QL](https://www.elastic.co/docs/reference/query-languages/esql/esql-search-tutorial)

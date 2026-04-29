@@ -1,0 +1,33 @@
+---
+title: Users API
+---
+
+# Users
+
+The **GET /users** endpoint returns a list of users. Requires **access_token** in the `Authorization` header as a Bearer token.
+
+## List users
+
+`GET /users` supports pagination query parameters `limit` and `cursor`. The default page size is fifty; maximum is two hundred per request. Sort order is stable within a cursor window but may change between major API versions if documented.
+
+Response items include **id**, **email**, **display_name**, **created_at**, and **status**. Sensitive attributes may be omitted for callers without elevated scopes.
+
+## Single user
+
+`GET /users/{id}` returns a single user record. Returns **404** if the user does not exist or is not visible to the caller’s workspace context.
+
+## Create user
+
+`POST /users` accepts a JSON body with **email** and optional profile fields. Idempotency keys are supported via the `Idempotency-Key` header for safe retries from clients.
+
+## Update and delete
+
+`PATCH /users/{id}` applies partial updates. **email** changes may trigger verification flows depending on tenant settings. `DELETE /users/{id}` schedules deletion according to policy; some tenants use soft-delete with a grace period.
+
+## Rate limits
+
+List endpoints are subject to per-application rate limits. When limited, the API returns **429** with a `Retry-After` header. Implement exponential backoff in clients and avoid tight polling loops.
+
+## Related endpoints
+
+Group membership and invitations are managed under `/groups` and `/invitations`. For authentication details, see the OAuth guide and token introspection endpoint documentation.

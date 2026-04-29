@@ -1,0 +1,27 @@
+---
+title: Billing (internal)
+---
+
+# Billing
+
+Internal documentation for invoice exports, tax settings, and payment reconciliation. Topics here may require **admin** or **billing** group membership.
+
+## Invoices
+
+Invoice PDFs and structured exports can be generated for any closed billing period. Exports include line items, taxes, discounts, and currency metadata. Large exports may be delivered asynchronously via a download URL with time-limited access.
+
+Configure tax behavior per region in the billing admin console. Changes apply to future invoices only unless you run an explicit recalculation job for open periods (requires elevated approval).
+
+## Payment reconciliation
+
+Match gateway settlements to internal ledger entries using the reconciliation report. Discrepancies are flagged when amounts or fee splits differ from expected values within configured tolerances.
+
+Operators with **billing** scope can trigger manual retries for failed settlement batches. Actions are written to the audit trail with actor identity and timestamp.
+
+## Credits and adjustments
+
+Account credits may be issued for service incidents or contractual commitments. Each credit is tied to a reason code and approval workflow. Adjustments that affect recognized revenue require **admin** sign-off in regulated deployments.
+
+## Data retention
+
+Billing artifacts are retained according to your organization’s policy and applicable law. Requests for deletion or export should go through the privacy workflow; do not delete raw gateway identifiers without coordinating with finance and compliance.

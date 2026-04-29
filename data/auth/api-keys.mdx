@@ -1,0 +1,27 @@
+---
+title: API keys
+---
+
+# API keys
+
+Create and rotate long-lived API keys from the developer dashboard. Keys are scoped to your workspace and can be limited to specific IP ranges where supported.
+
+## Creating a key
+
+Open **Settings → API keys** and choose **Create key**. Assign a descriptive name so you can audit usage later. Select the minimum scopes required for your integration; prefer narrowly scoped keys over full-access keys.
+
+After creation, the full key string is shown **once**. Copy it to a secure secret store. If you lose the key, revoke it and create a new one rather than attempting recovery.
+
+## Using API keys
+
+Send the key in the `Authorization` header using the scheme your workspace configures (commonly `Bearer` or a vendor-specific prefix documented in the authentication overview). Do not send API keys in query parameters, as those appear in logs and referrer headers.
+
+## Rotation and revocation
+
+Rotate keys on a regular schedule or immediately after team members leave or credentials may have been exposed. Revocation is effective within seconds for new requests; in-flight requests may complete using cached validation.
+
+## Best practices
+
+Do not embed API keys in mobile applications where the binary can be inspected. Prefer OAuth for user-delegated access in untrusted environments. For server-to-server jobs, use keys stored in a secret manager and injected at runtime.
+
+Monitor usage in the dashboard for anomalous traffic patterns. Set up alerts when available so unexpected spikes trigger review before quotas are exhausted or abuse spreads across your integration surface.

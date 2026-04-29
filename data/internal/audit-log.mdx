@@ -1,0 +1,29 @@
+---
+title: Audit log (internal)
+---
+
+# Audit log
+
+Restricted to **admin** viewers. This section describes how organization-wide audit events are recorded, searched, and retained.
+
+## Event types
+
+Events include authentication successes and failures, role changes, API key creation and revocation, billing configuration updates, and data export requests. Each event carries a stable **event_id**, **timestamp**, **actor** (user or system principal), and **resource** identifiers.
+
+High-risk actions may require step-up authentication before they appear in the log as committed. Failed attempts are still recorded when policy enforcement blocks the action.
+
+## Searching the log
+
+Use the audit API with filters for time range, actor, event type, and resource id. Results are paginated; use cursor-based pagination for large windows. Full-text search on arbitrary payload fields may be limited for performance; prefer structured filters.
+
+Exports for compliance reviews can span up to ninety days per request when approved by an **admin**. Very large exports are delivered as encrypted archives with separate key distribution.
+
+## Retention and immutability
+
+Retention defaults are set per plan tier. Within the retention window, events are append-only; corrections are modeled as new events referencing the original **event_id** where applicable.
+
+After retention expires, events are purged according to schedule. Legal holds override automatic deletion until the hold is released by authorized personnel.
+
+## Access control
+
+Only principals with **admin** role can list or export all organization events. Scoped viewers may be granted read access to subsets of event types when your contract supports delegated compliance roles.

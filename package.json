@@ -1,0 +1,30 @@
+{
+  "name": "elasticsearchfs",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap": "tsx src/bootstrap/run.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "vitest run tests/e2e",
+    "test:report": "vitest run tests/e2e; EXIT_CODE=$?; vitest run tests/e2e --reporter=json --outputFile=\"reports/vitest-results.json\" || true; tsx scripts/generate-test-report.ts; exit $EXIT_CODE",
+    "test:report:generate": "tsx scripts/generate-test-report.ts"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^9.0.0",
+    "@types/yargs-parser": "^21.0.3",
+    "dotenv": "^17.4.2",
+    "just-bash": "^2.14.2",
+    "yargs-parser": "^22.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

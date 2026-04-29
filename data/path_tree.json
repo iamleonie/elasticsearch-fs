@@ -1,0 +1,14 @@
+{
+  "auth/oauth": { "isPublic": true, "groups": [] },
+  "auth/api-keys": { "isPublic": true, "groups": [] },
+  "api-reference/users": { "isPublic": true, "groups": [] },
+  "api-reference/search-use-case/get-started/index-basics": { "isPublic": true, "groups": [] },
+  "api-reference/search-use-case/get-started/vector-search": { "isPublic": true, "groups": [] },
+  "api-reference/search-use-case/get-started/keyword-search-python": { "isPublic": true, "groups": [] },
+  "api-reference/search-use-case/build-search-queries/the-search-api": { "isPublic": true, "groups": [] },
+  "api-reference/search-use-case/build-search-queries/async-search-api": { "isPublic": true, "groups": [] },
+  "api-reference/search-use-case/ingest/search-pipelines": { "isPublic": true, "groups": [] },
+  "api-reference/payments": { "isPublic": false, "groups": ["billing"] },
+  "internal/billing": { "isPublic": false, "groups": ["internal", "billing"] },
+  "internal/audit-log": { "isPublic": false, "groups": ["internal"] }
+}
