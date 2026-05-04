@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { ElasticsearchFs } from '../src/core/elasticsearchfs.js';
 import { runElasticGrep } from '../src/core/grep.js';
 import { Bash, defineCommand } from 'just-bash';

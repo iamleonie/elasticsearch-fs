@@ -4,7 +4,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 import {
-  ELASTICSEARCHFS_CHUNKS_INDEX,
+  ELASTICSEARCHFS_FILES_INDEX,
   ELASTICSEARCHFS_META_INDEX,
   ELASTICSEARCHFS_PATH_TREE_DOC_ID,
   ELASTICSEARCHFS_PATH_TREE_ENCODING,
@@ -24,7 +24,7 @@ function loadMappingFile(fileName: string): JsonObject {
   return parsed as JsonObject;
 }
 
-const elasticsearchfsChunksMapping = loadMappingFile("mappings.json");
+const elasticsearchfsFilesMapping = loadMappingFile("mappings.json");
 const elasticsearchfsMetaMapping = loadMappingFile("meta-mapping.json");
 
 type IngestSummary = {
@@ -124,7 +124,7 @@ export async function runIngestPipeline(
   }
 
   await recreateIndex(client, ELASTICSEARCHFS_META_INDEX, elasticsearchfsMetaMapping);
-  await recreateIndex(client, ELASTICSEARCHFS_CHUNKS_INDEX, elasticsearchfsChunksMapping);
+  await recreateIndex(client, ELASTICSEARCHFS_FILES_INDEX, elasticsearchfsFilesMapping);
 
   const operations: BulkOperation[] = [];
   const slugSet = new Set<string>();
@@ -135,7 +135,7 @@ export async function runIngestPipeline(
     slugSet.add(slug);
     const fileStat = await stat(filePath);
     const content = await readFile(filePath, "utf8");
-    operations.push({ index: { _index: ELASTICSEARCHFS_CHUNKS_INDEX } });
+    operations.push({ index: { _index: ELASTICSEARCHFS_FILES_INDEX } });
     operations.push({
       slug,
       content,

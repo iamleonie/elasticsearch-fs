@@ -1,7 +1,7 @@
 import type { Client } from '@elastic/elasticsearch';
 import nodePath from 'node:path/posix';
 import { normalizePath, pathToSlug } from './path-tree.js';
-import { ELASTICSEARCHFS_CHUNKS_INDEX } from '../elasticsearchfs-constants.js';
+import { ELASTICSEARCHFS_FILES_INDEX } from '../elasticsearchfs-constants.js';
 import { escapeRegexpLiteral, hasRegexMeta } from './grep.js';
 
 import type {
@@ -85,7 +85,7 @@ export class ElasticsearchFs implements IFileSystem {
   /**
    * Path must exist as a file in the pruned tree (QUERY_SPEC);
    * this validates a specific path for reading.
-   * @returns `slug` keyword for `elasticsearchfs-chunks` (e.g. `auth/oauth`)
+   * @returns Ingest `slug` for file content documents (e.g. `auth/oauth`).
    */
   private resolveReadFileSlug(path: string): string {
     const normalized = normalizePath(path);
@@ -195,7 +195,7 @@ export class ElasticsearchFs implements IFileSystem {
     const slugs = new Set<string>();
     await this.searchAllPages(
       {
-        index: ELASTICSEARCHFS_CHUNKS_INDEX,
+        index: ELASTICSEARCHFS_FILES_INDEX,
         track_total_hits: false,
         _source: ['slug'],
         sort: [{ slug: { order: 'asc' } }],
@@ -231,7 +231,7 @@ export class ElasticsearchFs implements IFileSystem {
     const slug = this.resolveReadFileSlug(path);
 
     const res = await this.client.search<FileHitSource>({
-      index: ELASTICSEARCHFS_CHUNKS_INDEX,
+      index: ELASTICSEARCHFS_FILES_INDEX,
       size: 1,
       _source: ['content'],
       query: { bool: { filter: [{ term: { slug } }] } },
