@@ -3,7 +3,6 @@
   "properties": {
     "doc_type": { "type": "keyword" },
     "tree_version": { "type": "keyword" },
-    "encoding": { "type": "keyword" },
     "payload": { "type": "binary" },
     "created_at": { "type": "date" },
     "active_version": { "type": "keyword" },

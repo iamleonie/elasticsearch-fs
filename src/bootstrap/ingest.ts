@@ -2,12 +2,10 @@ import { Client, estypes } from "@elastic/elasticsearch";
 import { readFileSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { gzipSync } from "node:zlib";
 import {
   ELASTICSEARCHFS_FILES_INDEX,
   ELASTICSEARCHFS_META_INDEX,
   ELASTICSEARCHFS_PATH_TREE_DOC_ID,
-  ELASTICSEARCHFS_PATH_TREE_ENCODING,
 } from "../elasticsearchfs-constants.js";
 import { pathToSlug } from "../core/path-tree.js";
 import type { JsonObject, PathTreePolicy } from "./path-tree-policy.js";
@@ -76,16 +74,6 @@ async function recreateIndex(client: Client, index: string, mappings: JsonObject
 }
 
 /**
- * Serialises the path tree to JSON, compresses it with gzip, and returns the result as a base64
- * string. The compact encoding keeps the stored document small for a path tree that can be large.
- */
-function encodePathTreePayload(pathTree: PathTreePolicy): string {
-  const json = JSON.stringify(pathTree);
-  const gzipped = gzipSync(Buffer.from(json, "utf8"));
-  return gzipped.toString("base64");
-}
-
-/**
  * Writes the path tree as a single meta document with a fixed ID so it can be retrieved by ID
  * without a search query. `refresh: true` ensures it is immediately visible after indexing.
  */
@@ -98,8 +86,7 @@ async function indexPathTreeDocument(client: Client, pathTree: PathTreePolicy): 
     document: {
       doc_type: ELASTICSEARCHFS_PATH_TREE_DOC_ID,
       tree_version: now,
-      encoding: ELASTICSEARCHFS_PATH_TREE_ENCODING,
-      payload: encodePathTreePayload(pathTree),
+      payload: Buffer.from(JSON.stringify(pathTree), "utf8").toString("base64"),
       created_at: now,
       updated_at: now,
     },
