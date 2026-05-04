@@ -4,11 +4,14 @@
  */
 import type { Client } from '@elastic/elasticsearch';
 import {
+  type PathTreePolicy,
+  parsePathTreeAccessPolicy,
+} from './bootstrap/path-tree-policy.js';
+import { buildFileTreeFromSlugs } from './core/path-tree.js';
+import {
   ELASTICSEARCHFS_META_INDEX,
   ELASTICSEARCHFS_PATH_TREE_DOC_ID,
 } from './elasticsearchfs-constants.js';
-import { parsePathTreeAccessPolicy, type PathTreePolicy } from './bootstrap/path-tree-policy.js';
-import { buildFileTreeFromSlugs } from './core/path-tree.js';
 
 interface InitSessionTreeState {
   files: ReadonlySet<string>;
@@ -23,7 +26,9 @@ async function fetchPathTreePolicy(client: Client): Promise<PathTreePolicy> {
   });
   const payload = res._source?.payload;
   if (typeof payload !== 'string' || payload.length === 0) {
-    throw new Error('Session init failed: invalid __path_tree__ metadata payload.');
+    throw new Error(
+      'Session init failed: invalid __path_tree__ metadata payload.',
+    );
   }
 
   const json = Buffer.from(payload, 'base64').toString('utf8');
@@ -71,7 +76,10 @@ export async function initSessionTree(
   profile: string,
 ): Promise<InitSessionTreeState> {
   const pathTree = await fetchPathTreePolicy(client);
-  const authorizedSlugs = await resolveVisibleSlugsFromProfile(pathTree, profile);
+  const authorizedSlugs = await resolveVisibleSlugsFromProfile(
+    pathTree,
+    profile,
+  );
   const { files, dirs } = buildFileTreeFromSlugs(authorizedSlugs);
 
   return { files, dirs };

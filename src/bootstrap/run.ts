@@ -1,17 +1,16 @@
-import "dotenv/config";
-import path from "node:path";
-import { createESClient } from "../es-adapter/client.js";
-import { DEFAULT_DATA_ROOT, runIngestPipeline } from "./ingest.js";
-import { loadPathTreeAccessPolicy } from "./path-tree-policy.js";
+import 'dotenv/config';
+import path from 'node:path';
+import { createESClient } from '../es-adapter/client.js';
+import { DEFAULT_DATA_ROOT, runIngestPipeline } from './ingest.js';
+import { loadPathTreeAccessPolicy } from './path-tree-policy.js';
 
-const DEFAULT_PATH_TREE_PATH = "./data/path_tree.json";
-const SYSTEM_PROFILE = "SYSTEM";
+const DEFAULT_PATH_TREE_PATH = './data/path_tree.json';
+const SYSTEM_PROFILE = 'SYSTEM';
 
 /**
  * Orchestrates the bootstrap sequence: ingest data files.
  */
 async function main(): Promise<void> {
-  
   // 1. Create an ES client with the SYSTEM profile
   const client = createESClient(SYSTEM_PROFILE);
 

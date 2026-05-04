@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildLinePredicate, formatGrepOutput, parseGrepArgv } from '../../src/core/grep.js';
+import {
+  buildLinePredicate,
+  formatGrepOutput,
+  parseGrepArgv,
+} from '../../src/core/grep.js';
 
 describe('grep core helpers', () => {
   it('parses pattern and files', () => {
@@ -44,11 +48,11 @@ describe('grep core helpers', () => {
   });
 
   it('formats multi-file line-number output', () => {
-    const out = formatGrepOutput(
-      '/f.mdx',
-      [{ lineNo: 2, line: 'hello' }],
-      { filesWithMatches: false, lineNumber: true, multiFile: true },
-    );
+    const out = formatGrepOutput('/f.mdx', [{ lineNo: 2, line: 'hello' }], {
+      filesWithMatches: false,
+      lineNumber: true,
+      multiFile: true,
+    });
     expect(out).toBe('/f.mdx:2:hello\n');
   });
 });

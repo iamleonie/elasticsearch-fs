@@ -1,29 +1,32 @@
-import { Client, estypes } from "@elastic/elasticsearch";
-import { readFileSync } from "node:fs";
-import { readdir, readFile, stat } from "node:fs/promises";
-import path from "node:path";
+import { readFileSync } from 'node:fs';
+import { readdir, readFile, stat } from 'node:fs/promises';
+import path from 'node:path';
+import type { Client, estypes } from '@elastic/elasticsearch';
+import { pathToSlug } from '../core/path-tree.js';
 import {
   ELASTICSEARCHFS_FILES_INDEX,
   ELASTICSEARCHFS_META_INDEX,
   ELASTICSEARCHFS_PATH_TREE_DOC_ID,
-} from "../elasticsearchfs-constants.js";
-import { pathToSlug } from "../core/path-tree.js";
-import type { JsonObject, PathTreePolicy } from "./path-tree-policy.js";
+} from '../elasticsearchfs-constants.js';
+import type { JsonObject, PathTreePolicy } from './path-tree-policy.js';
 
-export const DEFAULT_DATA_ROOT = "./data";
+export const DEFAULT_DATA_ROOT = './data';
 
 /** Reads a JSON mapping file bundled alongside this module and returns it as a plain object. */
 function loadMappingFile(fileName: string): JsonObject {
-  const raw = readFileSync(new URL(`../es-adapter/${fileName}`, import.meta.url), "utf8");
+  const raw = readFileSync(
+    new URL(`../es-adapter/${fileName}`, import.meta.url),
+    'utf8',
+  );
   const parsed = JSON.parse(raw) as unknown;
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error(`Invalid ${fileName}: expected mapping object.`);
   }
   return parsed as JsonObject;
 }
 
-const elasticsearchfsFilesMapping = loadMappingFile("mappings.json");
-const elasticsearchfsMetaMapping = loadMappingFile("meta-mapping.json");
+const elasticsearchfsFilesMapping = loadMappingFile('mappings.json');
+const elasticsearchfsMetaMapping = loadMappingFile('meta-mapping.json');
 
 type IngestSummary = {
   files: number;
@@ -52,7 +55,7 @@ async function collectFiles(rootDir: string): Promise<string[]> {
       }
       if (!entry.isFile()) continue;
       const ext = path.extname(entry.name).toLowerCase();
-      if (ext !== ".mdx") continue;
+      if (ext !== '.mdx') continue;
       out.push(fullPath);
     }
   }
@@ -63,7 +66,11 @@ async function collectFiles(rootDir: string): Promise<string[]> {
 }
 
 /** Drops the index if it already exists, then recreates it with the given mappings. */
-async function recreateIndex(client: Client, index: string, mappings: JsonObject): Promise<void> {
+async function recreateIndex(
+  client: Client,
+  index: string,
+  mappings: JsonObject,
+): Promise<void> {
   const exists = await client.indices.exists({ index });
   if (exists) {
     await client.indices.delete({ index });
@@ -77,7 +84,10 @@ async function recreateIndex(client: Client, index: string, mappings: JsonObject
  * Writes the path tree as a single meta document with a fixed ID so it can be retrieved by ID
  * without a search query. `refresh: true` ensures it is immediately visible after indexing.
  */
-async function indexPathTreeDocument(client: Client, pathTree: PathTreePolicy): Promise<void> {
+async function indexPathTreeDocument(
+  client: Client,
+  pathTree: PathTreePolicy,
+): Promise<void> {
   const now = new Date().toISOString();
   await client.index({
     index: ELASTICSEARCHFS_META_INDEX,
@@ -86,12 +96,14 @@ async function indexPathTreeDocument(client: Client, pathTree: PathTreePolicy): 
     document: {
       doc_type: ELASTICSEARCHFS_PATH_TREE_DOC_ID,
       tree_version: now,
-      payload: Buffer.from(JSON.stringify(pathTree), "utf8").toString("base64"),
+      payload: Buffer.from(JSON.stringify(pathTree), 'utf8').toString('base64'),
       created_at: now,
       updated_at: now,
     },
   });
-  console.log(`Indexed path tree doc "${ELASTICSEARCHFS_PATH_TREE_DOC_ID}" in "${ELASTICSEARCHFS_META_INDEX}".`);
+  console.log(
+    `Indexed path tree doc "${ELASTICSEARCHFS_PATH_TREE_DOC_ID}" in "${ELASTICSEARCHFS_META_INDEX}".`,
+  );
 }
 
 /**
@@ -110,18 +122,26 @@ export async function runIngestPipeline(
     throw new Error(`No ingestible files found under ${dataRoot}.`);
   }
 
-  await recreateIndex(client, ELASTICSEARCHFS_META_INDEX, elasticsearchfsMetaMapping);
-  await recreateIndex(client, ELASTICSEARCHFS_FILES_INDEX, elasticsearchfsFilesMapping);
+  await recreateIndex(
+    client,
+    ELASTICSEARCHFS_META_INDEX,
+    elasticsearchfsMetaMapping,
+  );
+  await recreateIndex(
+    client,
+    ELASTICSEARCHFS_FILES_INDEX,
+    elasticsearchfsFilesMapping,
+  );
 
   const operations: BulkOperation[] = [];
   const slugSet = new Set<string>();
 
   for (const filePath of files) {
     const rel = path.relative(resolvedDataRoot, filePath);
-    const slug = pathToSlug(rel.split(path.sep).join("/"));
+    const slug = pathToSlug(rel.split(path.sep).join('/'));
     slugSet.add(slug);
     const fileStat = await stat(filePath);
-    const content = await readFile(filePath, "utf8");
+    const content = await readFile(filePath, 'utf8');
     operations.push({ index: { _index: ELASTICSEARCHFS_FILES_INDEX } });
     operations.push({
       slug,
@@ -136,7 +156,9 @@ export async function runIngestPipeline(
       refresh: true,
     });
     if (bulkResponse.errors) {
-      throw new Error("Bulk ingest reported errors. Inspect Elasticsearch response for details.");
+      throw new Error(
+        'Bulk ingest reported errors. Inspect Elasticsearch response for details.',
+      );
     }
   }
 

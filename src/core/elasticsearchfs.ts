@@ -1,9 +1,5 @@
-import type { Client } from '@elastic/elasticsearch';
 import nodePath from 'node:path/posix';
-import { normalizePath, pathToSlug } from './path-tree.js';
-import { ELASTICSEARCHFS_FILES_INDEX } from '../elasticsearchfs-constants.js';
-import { escapeRegexpLiteral, hasRegexMeta } from './grep.js';
-
+import type { Client } from '@elastic/elasticsearch';
 import type {
   BufferEncoding,
   CpOptions,
@@ -13,11 +9,20 @@ import type {
   MkdirOptions,
   RmOptions,
 } from 'just-bash';
-import type { DirentEntry, ReadFileOptions, WriteFileOptions } from './just-bash-fs-types.js';
+import { ELASTICSEARCHFS_FILES_INDEX } from '../elasticsearchfs-constants.js';
+import { escapeRegexpLiteral, hasRegexMeta } from './grep.js';
+import type {
+  DirentEntry,
+  ReadFileOptions,
+  WriteFileOptions,
+} from './just-bash-fs-types.js';
+import { normalizePath, pathToSlug } from './path-tree.js';
 
 // POSIX EROFS — mutating operations are not allowed on this read-only VFS.
 function erofs(): Error {
-  const err = new Error('EROFS: read-only file system') as NodeJS.ErrnoException;
+  const err = new Error(
+    'EROFS: read-only file system',
+  ) as NodeJS.ErrnoException;
   err.code = 'EROFS';
   return err;
 }
@@ -31,7 +36,9 @@ function enotdir(): Error {
 
 // POSIX ENOENT — path is not present in the tree (no such file or directory).
 function enoent(): Error {
-  const err = new Error('ENOENT: no such file or directory') as NodeJS.ErrnoException;
+  const err = new Error(
+    'ENOENT: no such file or directory',
+  ) as NodeJS.ErrnoException;
   err.code = 'ENOENT';
   return err;
 }
@@ -122,7 +129,9 @@ export class ElasticsearchFs implements IFileSystem {
    */
   private async searchAllPages(
     params: Parameters<Client['search']>[0],
-    extractCursor: (hits: { _source?: FileHitSource }[]) => unknown[] | undefined,
+    extractCursor: (
+      hits: { _source?: FileHitSource }[],
+    ) => unknown[] | undefined,
     onPage: (hits: { _source?: FileHitSource }[]) => void,
   ): Promise<void> {
     let searchAfter: unknown[] | undefined;
@@ -247,7 +256,7 @@ export class ElasticsearchFs implements IFileSystem {
 
   /**
    * Read the contents of a file as a Uint8Array (binary)
-   * Same logical file as {@link readFile}, as UTF-8 bytes (corpus is text in ES). 
+   * Same logical file as {@link readFile}, as UTF-8 bytes (corpus is text in ES).
    * Implemented by reusing `readFile` then `TextEncoder`.
    * @throws Error if file doesn't exist or is a directory
    */
@@ -351,17 +360,17 @@ export class ElasticsearchFs implements IFileSystem {
    */
   async readdir(path: string): Promise<string[]> {
     const normalized = normalizePath(path);
-    
+
     const names = this.dirs.get(normalized);
-    
+
     if (names !== undefined) {
       return [...names];
     }
-    
+
     if (this.files.has(normalized)) {
       throw enotdir();
     }
-    
+
     throw enoent();
   }
 
@@ -379,9 +388,7 @@ export class ElasticsearchFs implements IFileSystem {
     for (const name of names) {
       const childPath = normalizePath(nodePath.join(normalized, name));
       const isDirectory = this.dirs.has(childPath);
-      const isFile =
-        !isDirectory &&
-        this.files.has(childPath);
+      const isFile = !isDirectory && this.files.has(childPath);
 
       out.push({
         name,

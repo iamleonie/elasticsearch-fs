@@ -1,7 +1,7 @@
 import {
   ELASTICSEARCHFS_FILES_INDEX,
   ELASTICSEARCHFS_META_INDEX,
-} from "../elasticsearchfs-constants.js";
+} from '../elasticsearchfs-constants.js';
 
 export type IndexPermissionDescriptor = {
   names: string[];
@@ -13,17 +13,19 @@ export type IndexPermissionDescriptor = {
  * Builds index permission descriptors for both the file-content (`elasticsearchfs-chunks`) and meta indices.
  * When `slugs` is provided, the files index entry is scoped to those slugs via a DLS `terms` query.
  */
-export function buildReadOnlyIndexPermissions(slugs?: string[]): IndexPermissionDescriptor[] {
+export function buildReadOnlyIndexPermissions(
+  slugs?: string[],
+): IndexPermissionDescriptor[] {
   const filesIndexEntry: IndexPermissionDescriptor = {
     names: [ELASTICSEARCHFS_FILES_INDEX],
-    privileges: ["read"],
+    privileges: ['read'],
   };
   if (Array.isArray(slugs)) {
     filesIndexEntry.query = { terms: { slug: slugs } };
   }
   const metaEntry: IndexPermissionDescriptor = {
     names: [ELASTICSEARCHFS_META_INDEX],
-    privileges: ["read"],
+    privileges: ['read'],
   };
   return [filesIndexEntry, metaEntry];
 }

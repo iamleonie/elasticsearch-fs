@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { Client } from '@elastic/elasticsearch';
+import { describe, expect, it, vi } from 'vitest';
 import { ElasticsearchFs } from '../../src/core/elasticsearchfs.js';
 
 type SearchResponse = {
