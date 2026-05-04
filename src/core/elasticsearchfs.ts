@@ -70,8 +70,8 @@ const SEARCH_PAGE_SIZE = 1000;
  * Read-only virtual filesystem backed by Elasticsearch file documents and a preloaded path tree.
  */
 export class ElasticsearchFs implements IFileSystem {
-  private readonly files: Set<string>;
-  private readonly dirs: Map<string, string[]>;
+  private files = new Set<string>();
+  private dirs = new Map<string, string[]>();
   private readonly client: Client;
 
   constructor(options: {
@@ -270,10 +270,13 @@ export class ElasticsearchFs implements IFileSystem {
    * @throws Error if called to enforce read-only interaction.
    */
   async writeFile(
-    _path: string,
-    _content: FileContent,
-    _options?: WriteFileOptions | BufferEncoding,
+    path: string,
+    content: FileContent,
+    options?: WriteFileOptions | BufferEncoding,
   ): Promise<void> {
+    void path;
+    void content;
+    void options;
     throw erofs();
   }
 
@@ -282,10 +285,13 @@ export class ElasticsearchFs implements IFileSystem {
    * @throws Error if called to enforce read-only interaction.
    */
   async appendFile(
-    _path: string,
-    _content: FileContent,
-    _options?: WriteFileOptions | BufferEncoding,
+    path: string,
+    content: FileContent,
+    options?: WriteFileOptions | BufferEncoding,
   ): Promise<void> {
+    void path;
+    void content;
+    void options;
     throw erofs();
   }
 
@@ -341,7 +347,9 @@ export class ElasticsearchFs implements IFileSystem {
    * Does not create a directory.
    * @throws Error if called to enforce read-only interaction.
    */
-  async mkdir(_path: string, _options?: MkdirOptions): Promise<void> {
+  async mkdir(path: string, options?: MkdirOptions): Promise<void> {
+    void path;
+    void options;
     throw erofs();
   }
 
@@ -351,11 +359,8 @@ export class ElasticsearchFs implements IFileSystem {
    * @throws Error if path doesn't exist or is not a directory
    */
   async readdir(path: string): Promise<string[]> {
-    return this.readdirNormalized(normalizePath(path));
-  }
+    const normalized = normalizePath(path);
 
-  /** @param normalized Result of {@link normalizePath} for `path`. */
-  private readdirNormalized(normalized: string): string[] {
     const names = this.dirs.get(normalized);
 
     if (names !== undefined) {
@@ -376,8 +381,8 @@ export class ElasticsearchFs implements IFileSystem {
    * @throws Error if path doesn't exist or is not a directory
    */
   async readdirWithFileTypes(path: string): Promise<DirentEntry[]> {
+    const names = await this.readdir(path);
     const normalized = normalizePath(path);
-    const names = this.readdirNormalized(normalized);
     const out: DirentEntry[] = [];
 
     for (const name of names) {
@@ -400,7 +405,9 @@ export class ElasticsearchFs implements IFileSystem {
    * Does not remove a file or directory.
    * @throws Error if called to enforce read-only interaction.
    */
-  async rm(_path: string, _options?: RmOptions): Promise<void> {
+  async rm(path: string, options?: RmOptions): Promise<void> {
+    void path;
+    void options;
     throw erofs();
   }
 
@@ -408,7 +415,10 @@ export class ElasticsearchFs implements IFileSystem {
    * Does not copy a file or directory.
    * @throws Error if called to enforce read-only interaction.
    */
-  async cp(_src: string, _dest: string, _options?: CpOptions): Promise<void> {
+  async cp(src: string, dest: string, options?: CpOptions): Promise<void> {
+    void src;
+    void dest;
+    void options;
     throw erofs();
   }
 
@@ -416,7 +426,9 @@ export class ElasticsearchFs implements IFileSystem {
    * Does not move or rename a file or directory.
    * @throws Error if called to enforce read-only interaction.
    */
-  async mv(_src: string, _dest: string): Promise<void> {
+  async mv(src: string, dest: string): Promise<void> {
+    void src;
+    void dest;
     throw erofs();
   }
 
@@ -443,7 +455,9 @@ export class ElasticsearchFs implements IFileSystem {
    * Does not change file or directory permissions.
    * @throws Error if called to enforce read-only interaction.
    */
-  async chmod(_path: string, _mode: number): Promise<void> {
+  async chmod(path: string, mode: number): Promise<void> {
+    void path;
+    void mode;
     throw erofs();
   }
 
@@ -451,7 +465,9 @@ export class ElasticsearchFs implements IFileSystem {
    * Does not create a symbolic link.
    * @throws Error if called to enforce read-only interaction.
    */
-  async symlink(_target: string, _linkPath: string): Promise<void> {
+  async symlink(target: string, linkPath: string): Promise<void> {
+    void target;
+    void linkPath;
     throw erofs();
   }
 
@@ -459,7 +475,9 @@ export class ElasticsearchFs implements IFileSystem {
    * Does not create a hard link.
    * @throws Error if called to enforce read-only interaction.
    */
-  async link(_existingPath: string, _newPath: string): Promise<void> {
+  async link(existingPath: string, newPath: string): Promise<void> {
+    void existingPath;
+    void newPath;
     throw erofs();
   }
 
@@ -504,7 +522,10 @@ export class ElasticsearchFs implements IFileSystem {
    * Does not set access or modification times of a file.
    * @throws Error if called to enforce read-only interaction.
    */
-  async utimes(_path: string, _atime: Date, _mtime: Date): Promise<void> {
+  async utimes(path: string, atime: Date, mtime: Date): Promise<void> {
+    void path;
+    void atime;
+    void mtime;
     throw erofs();
   }
 }
