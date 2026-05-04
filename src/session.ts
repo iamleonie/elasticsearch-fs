@@ -39,10 +39,10 @@ async function fetchPathTreePolicy(client: Client): Promise<PathTreePolicy> {
 /**
  * Returns the set of slugs visible for a selected profile based on `isPublic/groups`.
  */
-async function resolveVisibleSlugsFromProfile(
+function resolveVisibleSlugsFromProfile(
   pathTree: PathTreePolicy,
   profile: string,
-): Promise<Set<string>> {
+): Set<string> {
   const normalizedProfile = profile.trim().toLowerCase();
   if (normalizedProfile === 'system') {
     return new Set(Object.keys(pathTree));
@@ -76,10 +76,7 @@ export async function initSessionTree(
   profile: string,
 ): Promise<InitSessionTreeState> {
   const pathTree = await fetchPathTreePolicy(client);
-  const authorizedSlugs = await resolveVisibleSlugsFromProfile(
-    pathTree,
-    profile,
-  );
+  const authorizedSlugs = resolveVisibleSlugsFromProfile(pathTree, profile);
   const { files, dirs } = buildFileTreeFromSlugs(authorizedSlugs);
 
   return { files, dirs };

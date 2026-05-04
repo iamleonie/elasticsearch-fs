@@ -88,9 +88,7 @@ export function buildFileTreeFromSlugs(slugs: Iterable<string>): {
     files.add(fp);
 
     const base = path.basename(fp);
-    let dir = path.dirname(fp);
-
-    if (dir === '.') dir = '/';
+    const dir = path.dirname(fp);
     addChild(dir, base);
 
     let current = dir;

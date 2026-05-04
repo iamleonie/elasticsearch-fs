@@ -20,7 +20,7 @@ export function buildReadOnlyIndexPermissions(
     names: [ELASTICSEARCHFS_FILES_INDEX],
     privileges: ['read'],
   };
-  if (Array.isArray(slugs)) {
+  if (slugs !== undefined) {
     filesIndexEntry.query = { terms: { slug: slugs } };
   }
   const metaEntry: IndexPermissionDescriptor = {
