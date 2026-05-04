@@ -12,7 +12,6 @@ import {
 import { pathToSlug } from "../core/path-tree.js";
 import type { JsonObject, PathTreePolicy } from "./path-tree-policy.js";
 
-const CHUNK_SIZE = 500;
 export const DEFAULT_DATA_ROOT = "./data";
 
 /** Reads a JSON mapping file bundled alongside this module and returns it as a plain object. */
@@ -30,18 +29,16 @@ const elasticsearchfsMetaMapping = loadMappingFile("meta-mapping.json");
 
 type IngestSummary = {
   files: number;
-  chunks: number;
   slugs: string[];
 };
 
-type ChunkDocument = {
+type FileDocument = {
   slug: string;
-  chunk_index: number;
   content: string;
   updated_at: string;
 };
 
-type BulkOperation = { index: { _index: string } } | ChunkDocument;
+type BulkOperation = { index: { _index: string } } | FileDocument;
 
 /** Recursively walks `rootDir` and returns absolute paths of all `.mdx` files, sorted alphabetically. */
 async function collectFiles(rootDir: string): Promise<string[]> {
@@ -65,25 +62,6 @@ async function collectFiles(rootDir: string): Promise<string[]> {
   await walk(rootDir);
   out.sort();
   return out;
-}
-
-/**
- * Splits `content` into fixed-size character chunks of at most `chunkSize` characters.
- * An empty string returns a single empty-string chunk to preserve document presence.
- */
-function splitIntoChunks(content: string, chunkSize: number): string[] {
-  if (chunkSize <= 0) {
-    throw new Error(`chunkSize must be > 0, got ${chunkSize}`);
-  }
-  if (content.length === 0) return [""];
-
-  const chunks: string[] = [];
-  for (let start = 0; start < content.length; start += chunkSize) {
-    const end = Math.min(content.length, start + chunkSize);
-    chunks.push(content.slice(start, end));
-    if (end >= content.length) break;
-  }
-  return chunks;
 }
 
 /** Drops the index if it already exists, then recreates it with the given mappings. */
@@ -131,8 +109,8 @@ async function indexPathTreeDocument(client: Client, pathTree: PathTreePolicy): 
 
 /**
  * Full ingest run: discovers all `.mdx` files under `options.dataRoot`, recreates both indices,
- * bulk-indexes all file chunks, and stores the path tree document.
- * Returns a summary of how many files, chunks, and slugs were processed.
+ * bulk-indexes one document per file, and stores the path tree document.
+ * Returns a summary of how many files and slugs were processed.
  */
 export async function runIngestPipeline(
   client: Client,
@@ -157,17 +135,12 @@ export async function runIngestPipeline(
     slugSet.add(slug);
     const fileStat = await stat(filePath);
     const content = await readFile(filePath, "utf8");
-    const chunks = splitIntoChunks(content, CHUNK_SIZE);
-
-    for (let i = 0; i < chunks.length; i += 1) {
-      operations.push({ index: { _index: ELASTICSEARCHFS_CHUNKS_INDEX } });
-      operations.push({
-        slug,
-        chunk_index: i,
-        content: chunks[i],
-        updated_at: fileStat.mtime.toISOString(),
-      });
-    }
+    operations.push({ index: { _index: ELASTICSEARCHFS_CHUNKS_INDEX } });
+    operations.push({
+      slug,
+      content,
+      updated_at: fileStat.mtime.toISOString(),
+    });
   }
 
   if (operations.length > 0) {
@@ -184,9 +157,8 @@ export async function runIngestPipeline(
 
   const summary: IngestSummary = {
     files: files.length,
-    chunks: operations.length / 2,
     slugs: [...slugSet].sort(),
   };
-  console.log(`Indexed ${summary.chunks} chunks from ${summary.files} files.`);
+  console.log(`Indexed ${summary.files} files.`);
   return summary;
 }

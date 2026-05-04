@@ -68,7 +68,7 @@ npm install
 
 Before running the assistant, run bootstrap. It:
 - processes **`.mdx`** files only
-- chunks content into `500`-character segments
+- indexes one Elasticsearch document per file (full file body in `content`)
 - runs in reset mode by deleting and recreating `elasticsearchfs-chunks` and `elasticsearchfs-meta` on every run
 - uses `createESClient("SYSTEM")` for ingest
 - reads content from `./data`

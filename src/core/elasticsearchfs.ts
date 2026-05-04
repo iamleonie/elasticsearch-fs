@@ -43,9 +43,8 @@ function einval(message: string): Error {
   return err;
 }
 
-interface ChunkHitSource {
+interface FileHitSource {
   content?: string;
-  chunk_index?: number;
   slug?: string;
 }
 
@@ -61,7 +60,7 @@ interface GrepCoarseFilter {
 const SEARCH_PAGE_SIZE = 1000;
 
 /**
- * Read-only virtual filesystem backed by Elasticsearch chunks and a preloaded path tree.
+ * Read-only virtual filesystem backed by Elasticsearch file documents and a preloaded path tree.
  */
 export class ElasticsearchFs implements IFileSystem {
   private files = new Set<string>();
@@ -103,7 +102,7 @@ export class ElasticsearchFs implements IFileSystem {
   /**
    * Ingest `slug` for a visible canonical file (`elasticsearchfs-chunks`), or `null` if not in the tree.
    */
-  getChunkSlug(vfsPath: string): string | null {
+  getFileSlug(vfsPath: string): string | null {
     const normalized = normalizePath(vfsPath);
     const treeKey = this.resolveTreeFileKey(normalized);
     if (treeKey === undefined) return null;
@@ -123,12 +122,12 @@ export class ElasticsearchFs implements IFileSystem {
    */
   private async searchAllPages(
     params: Parameters<Client['search']>[0],
-    extractCursor: (hits: { _source?: ChunkHitSource }[]) => unknown[] | undefined,
-    onPage: (hits: { _source?: ChunkHitSource }[]) => void,
+    extractCursor: (hits: { _source?: FileHitSource }[]) => unknown[] | undefined,
+    onPage: (hits: { _source?: FileHitSource }[]) => void,
   ): Promise<void> {
     let searchAfter: unknown[] | undefined;
     while (true) {
-      const res = await this.client.search<ChunkHitSource>({
+      const res = await this.client.search<FileHitSource>({
         ...params,
         size: SEARCH_PAGE_SIZE,
         ...(searchAfter !== undefined ? { search_after: searchAfter } : {}),
@@ -144,7 +143,7 @@ export class ElasticsearchFs implements IFileSystem {
   }
 
   /**
-   * Coarse stage for `grep`: distinct chunk `slug` values that may match.
+   * Coarse stage for `grep`: distinct file `slug` values that may match.
    *
    * @param slugsUnderDirs In-scope ingest slugs (e.g. `auth/oauth`).
    * @returns Slugs that passed the coarse query and optional match_phrase/regexp filter.
@@ -198,18 +197,17 @@ export class ElasticsearchFs implements IFileSystem {
       {
         index: ELASTICSEARCHFS_CHUNKS_INDEX,
         track_total_hits: false,
-        _source: ['slug', 'chunk_index'],
-        sort: [{ slug: { order: 'asc' } }, { chunk_index: { order: 'asc' } }],
+        _source: ['slug'],
+        sort: [{ slug: { order: 'asc' } }],
         query,
       },
       (hits) => {
         const last = hits[hits.length - 1];
         const lastSlug = last?._source?.slug;
-        const lastChunk = last?._source?.chunk_index;
-        if (typeof lastSlug !== 'string' || lastSlug.length === 0 || typeof lastChunk !== 'number') {
+        if (typeof lastSlug !== 'string' || lastSlug.length === 0) {
           return undefined;
         }
-        return [lastSlug, lastChunk];
+        return [lastSlug];
       },
       (hits) => {
         for (const hit of hits) {
@@ -232,30 +230,19 @@ export class ElasticsearchFs implements IFileSystem {
     void options;
     const slug = this.resolveReadFileSlug(path);
 
-    // Serve from cache or fetch from Elasticsearch (in-process cache not implemented yet).
-    // Pages are chunked in Elasticsearch and keyed by `slug`. Reassemble on the fly:
-    const parts: string[] = [];
-    await this.searchAllPages(
-      {
-        index: ELASTICSEARCHFS_CHUNKS_INDEX,
-        sort: [{ chunk_index: { order: 'asc' } }],
-        _source: ['content', 'chunk_index'],
-        query: { bool: { filter: [{ term: { slug } }] } },
-      },
-      (hits) => {
-        const lastChunk = hits[hits.length - 1]?._source?.chunk_index;
-        return typeof lastChunk === 'number' ? [lastChunk] : undefined;
-      },
-      (hits) => {
-        for (const hit of hits) parts.push(hit._source?.content ?? '');
-      },
-    );
-
-    if (parts.length === 0) {
+    const res = await this.client.search<FileHitSource>({
+      index: ELASTICSEARCHFS_CHUNKS_INDEX,
+      size: 1,
+      _source: ['content'],
+      query: { bool: { filter: [{ term: { slug } }] } },
+    });
+    const hit = res.hits.hits[0];
+    const content = hit?._source?.content;
+    if (content === undefined) {
       throw enoent();
     }
 
-    return parts.join('');
+    return content;
   }
 
   /**

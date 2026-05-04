@@ -24,7 +24,7 @@ async function main(): Promise<void> {
   try {
     const ingest = await runIngestPipeline(client, dataRoot, pathTreePolicy);
 
-    console.log(`Bootstrap complete: ${ingest.files} files, ${ingest.chunks} chunks.`);
+    console.log(`Bootstrap complete: ${ingest.files} files.`);
   } finally {
     await client.close();
   }

@@ -328,7 +328,7 @@ export async function runElasticGrep(
 
   // 5. Get slugs under directories
   const slugsUnderDirs = vfsPaths
-    .map((p) => elasticsearchFs.getChunkSlug(p))
+    .map((p) => elasticsearchFs.getFileSlug(p))
     .filter((s): s is string => s !== null);
   // 6. Build coarse filter
   const coarseFilter = {
@@ -350,7 +350,7 @@ export async function runElasticGrep(
   }
   if (matchedSlugs.length === 0) return { stdout: '', stderr: '', exitCode: 1 };
 
-  // 2. Prefetch: Pull the chunked files into local cache concurrently
+  // 2. Prefetch: Pull matched files into local cache concurrently
   // TODO: await elasticsearchFs.bulkPrefetch(matchedSlugs);
 
   // 3. Fine Filter: Narrow to resolved hit paths.

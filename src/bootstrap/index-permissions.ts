@@ -10,8 +10,8 @@ export type IndexPermissionDescriptor = {
 };
 
 /**
- * Builds index permission descriptors for both the chunks and meta indices.
- * When `slugs` is provided, the chunks entry is scoped to those slugs via a DLS `terms` query.
+ * Builds index permission descriptors for both the file-content (`elasticsearchfs-chunks`) and meta indices.
+ * When `slugs` is provided, the content index entry is scoped to those slugs via a DLS `terms` query.
  */
 export function buildReadOnlyIndexPermissions(slugs?: string[]): IndexPermissionDescriptor[] {
   const chunksEntry: IndexPermissionDescriptor = {
