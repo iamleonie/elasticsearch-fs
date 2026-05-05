@@ -6,8 +6,7 @@ This project is inspired by recent discussions around virtual filesystems for AI
 - LangChain/LangSmith discussion: [Filesystem memory system post](https://x.com/hwchase17/status/2011814697889316930)
 - Mintlify: [How we built a virtual filesystem for our assistant](https://www.mintlify.com/blog/how-we-built-a-virtual-filesystem-for-our-assistant)
 
-You can find the related write-up describing this implementation in [`BLOG_NOTES.md`](./BLOG_NOTES.md).
-
+You can find the related write-up describing this implementation in [the related write up "Implementing a virtual filesystem over Elasticsearch"](https://leoniemonigatti.com/blog/virtual-filesystem-elasticsearch.html).
 
 ## Setup and Usage
 
@@ -15,7 +14,7 @@ You can find the related write-up describing this implementation in [`BLOG_NOTES
 
 - Node.js (v18+)
 - Elasticsearch endpoint URL
-- Credentials for profiles you use (`SYSTEM`, `PUBLIC`, `BILLING`, `INTERNAL`)
+- Credentials for profiles you use. This example uses `SYSTEM`, `PUBLIC`, `BILLING`, `INTERNAL`. See "Example usage" for profile permission set up.
 
 ### Environment
 
@@ -23,23 +22,19 @@ Copy `.env.example` to `.env` and fill in your values:
 
 ```
 ELASTICSEARCH_URL=https://your-project.es.region.aws.elastic.cloud
-# Ingestion/bootstrap key
-# ELASTICSEARCH_API_KEY_SYSTEM=...
-#
-# Runtime profile keys:
+ELASTICSEARCH_API_KEY_SYSTEM=... # Ingestion/bootstrap key
+
+# Example runtime profile keys. Replace with your own
 # ELASTICSEARCH_API_KEY_PUBLIC=read_key_for_public_role
 # ELASTICSEARCH_API_KEY_BILLING=read_key_for_billing_role
 # ELASTICSEARCH_API_KEY_INTERNAL=read_key_for_internal_role
 ```
 
-`createESClient(profile)` reads these values from `process.env`. The bootstrap entrypoint loads `.env` via `dotenv/config`.
-The profile must be uppercase (e.g., `PUBLIC`, `BILLING`, `INTERNAL`, `SYSTEM`) and maps exactly to:
-- `ELASTICSEARCH_API_KEY_<PROFILE>` (for example `ELASTICSEARCH_API_KEY_BILLING`)
-There is no fallback to a default key or alternate environment variable names.
+The profile must be uppercase (e.g., `PUBLIC`, `BILLING`, `INTERNAL`, `SYSTEM`) and maps exactly to `ELASTICSEARCH_API_KEY_<PROFILE>` (for example `ELASTICSEARCH_API_KEY_BILLING`)
 
 ### Create ingestion API key (`SYSTEM`)
 
-1. Open your S[Serverless project](https://cloud.elastic.co/projects)
+1. Open your [Serverless project](https://cloud.elastic.co/projects)
 2. Open the project in Kibana under `https://<your-kibana-host>/app/management/security/api_keys`
 3. Go to **API keys** and create a key (without setting additional privileges).
 4. Use that value as:
@@ -66,15 +61,13 @@ npm install
 
 ### Bootstrap
 
-Before running the assistant, run bootstrap. It:
-- processes **`.mdx`** files only
-- chunks content into `500`-character segments
-- runs in reset mode by deleting and recreating `elasticsearchfs-chunks` and `elasticsearchfs-meta` on every run
-- uses `createESClient("SYSTEM")` for ingest
-- reads content from `./data`
-- reads path tree policy from `./data/path_tree.json`
+Before connecting the virtual filesystem with your agent, you need to run bootstrap to set up the underlying Elasticsearch cluster:
 
-For bootstrap, set `ELASTICSEARCH_API_KEY_SYSTEM` to your ingestion key.
+- Uses `SYSTEM` profile for ingestion (set `ELASTICSEARCH_API_KEY_SYSTEM` to your ingestion key)
+- Reads file contents from `./data` (only processes .mdx files) and path tree policy from `./data/path_tree.json`
+- Indexes one Elasticsearch document per file (full file body in `content`)
+- Runs in reset mode by deleting and recreating `elasticsearchfs-chunks` and `elasticsearchfs-meta` on every run
+
 
 ```bash
 npm run bootstrap
@@ -99,9 +92,15 @@ End-to-end tests ([Vitest](https://vitest.dev/)) call Elasticsearch through prof
 npm test
 ```
 
-### just-bash quickstarts
+You can also generate an end-to-end command report:
 
-After ingest and `.env` are set, you can smoke-test **grep + cat** with just-bash:
+```bash
+npm run test:report
+```
+
+### Quickstarts
+
+After ingest and `.env` are set, you can run a quick start: 
 
 ```bash
 # Local ./data on disk (ReadWriteFs) — no Elasticsearch
@@ -112,36 +111,9 @@ npx tsx scripts/just-bash-elasticsearchfs-quickstart.ts PUBLIC
 ```
 
 
-### Test Coverage
-
-Current tests:
-
-- `tests/e2e/bash-commands.test.ts` validates command behavior (`pwd`, `cd`, `ls`, `cat`, `find`) through `just-bash` on `ElasticsearchFs`.
-- `tests/e2e/grep.test.ts` validates `grep` end-to-end behavior including recursive searches and regex vs fixed-string matching.
-- `tests/e2e/permissions.test.ts` validates profile visibility and explicit allowed/denied path access across `PUBLIC`, `BILLING`, `INTERNAL`, and `SYSTEM`.
-- `tests/unit/grep-core.test.ts` keeps a small fast unit layer for grep parser/predicate helpers.
-- `tests/unit/elasticsearchfs-pagination.test.ts` validates `search_after` pagination behavior used by coarse grep search.
-
-Generate an end-to-end command report (expected vs actual command output):
-
-```bash
-npm run test:report
-```
-
-Artifacts are written to:
-- `reports/e2e-command-report.jsonl`
-- `reports/e2e-command-report.md`
-- `reports/e2e-command-report-summary.json`
-- `reports/vitest-results.json` (used to include skipped-test overview)
-
-These `reports/` artifacts are generated locally and ignored by Git.
-
-Project sequencing note: comprehensive end-to-end/contract testing is treated as the **final step** before declaring v1 scope complete.
-
-
 # Example Usage
 
-In the folder /data you will find a minimal sample dataset, including a path-tree.json file.
+In the folder `/data` you will find a minimal sample dataset, including a path-tree.json file.
 
 
 `PUBLIC`:

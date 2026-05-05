@@ -1,8 +1,9 @@
 /**
- * Two-stage `grep` for just-bash over ElasticsearchFs: coarse + fine in-memory match. 
+ * Two-stage `grep` for just-bash over ElasticsearchFs: coarse + fine in-memory match.
  */
+
+import type { CommandContext, ExecResult } from 'just-bash';
 import yargsParser from 'yargs-parser';
-import { type CommandContext, type ExecResult } from 'just-bash';
 import type { ElasticsearchFs } from './elasticsearchfs.js';
 import { normalizePath, slugToPath } from './path-tree.js';
 
@@ -74,21 +75,17 @@ export function parseGrepArgv(
   });
 
   const fixedStrings = Boolean(parsed.F ?? defaultFixedStrings);
+  const hasExplicitPattern = typeof parsed.e === 'string' && parsed.e !== '';
 
   let pattern: string | undefined;
   const pos = parsed._ as string[];
-  if (parsed.e !== undefined && parsed.e !== '') {
+  if (hasExplicitPattern) {
     pattern = parsed.e;
   } else if (pos.length > 0) {
     pattern = pos[0];
   }
 
-  let fileArgs: string[];
-  if (parsed.e !== undefined && parsed.e !== '') {
-    fileArgs = pos;
-  } else {
-    fileArgs = pos.slice(1);
-  }
+  const fileArgs = hasExplicitPattern ? pos : pos.slice(1);
 
   if (pattern === undefined || pattern === '') {
     throw new Error('grep: missing pattern');
@@ -116,7 +113,10 @@ async function listVfsFilesForGrep(
   cwd: string,
   fileArgs: string[],
   recursive: boolean,
-): Promise<{ ok: true; vfsPaths: string[] } | { ok: false; stderr: string; exitCode: number }> {
+): Promise<
+  | { ok: true; vfsPaths: string[] }
+  | { ok: false; stderr: string; exitCode: number }
+> {
   const roots = fileArgs.length > 0 ? fileArgs : ['.'];
   const out = new Set<string>();
   const allFiles = fs.getVisibleFilePaths();
@@ -143,7 +143,7 @@ async function listVfsFilesForGrep(
           exitCode: 2,
         };
       }
-      const prefix = abs === '/' ? '/' : abs;
+      const prefix = abs;
       for (const fp of allFiles) {
         if (prefix === '/' || fp === prefix || fp.startsWith(`${prefix}/`)) {
           out.add(fp);
@@ -154,7 +154,6 @@ async function listVfsFilesForGrep(
 
   return { ok: true, vfsPaths: [...out].sort() };
 }
-
 
 /**
  * Builds a per-line match function from grep pattern options.
@@ -198,8 +197,7 @@ function findMatchingLines(
 ): GrepLineHit[] {
   const lines = content.split(/\r?\n/u);
   const out: GrepLineHit[] = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i]!;
+  for (const [i, line] of lines.entries()) {
     if (predicate(line)) {
       out.push({ lineNo: i + 1, line });
     }
@@ -227,7 +225,9 @@ export function formatGrepOutput(
   let buf = '';
   for (const h of hits) {
     if (opts.multiFile) {
-      buf += opts.lineNumber ? `${vfsPath}:${h.lineNo}:${h.line}\n` : `${vfsPath}:${h.line}\n`;
+      buf += opts.lineNumber
+        ? `${vfsPath}:${h.lineNo}:${h.line}\n`
+        : `${vfsPath}:${h.line}\n`;
     } else {
       buf += opts.lineNumber ? `${h.lineNo}:${h.line}\n` : `${h.line}\n`;
     }
@@ -258,7 +258,11 @@ async function execBuiltin(
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { stdout: '', stderr: `grep: invalid regular expression: ${msg}\n`, exitCode: 2 };
+    return {
+      stdout: '',
+      stderr: `grep: invalid regular expression: ${msg}\n`,
+      exitCode: 2,
+    };
   }
 
   let stdout = '';
@@ -297,7 +301,7 @@ export async function runElasticGrep(
   ctx: CommandContext,
   elasticsearchFs: ElasticsearchFs,
 ): Promise<ExecResult> {
-  // 1. Parse arguments
+  // Parse arguments
   let scannedArgs: ParsedGrepArgv;
   try {
     scannedArgs = parseGrepArgv(args);
@@ -306,57 +310,68 @@ export async function runElasticGrep(
     return { stdout: '', stderr: `${msg}\n`, exitCode: 2 };
   }
 
-  // 2. List visible files for grep
+  // List visible files for grep
   const scope = await listVfsFilesForGrep(
     elasticsearchFs,
     ctx.cwd,
     scannedArgs.fileArgs,
     scannedArgs.recursive,
   );
-  
-  // 3. If no visible files, return early
+
+  // If no visible files, return early
   if (!scope.ok) {
     return { stdout: '', stderr: scope.stderr, exitCode: scope.exitCode };
   }
 
-  // 4. Get visible file paths
+  // Get visible file paths
   const vfsPaths = scope.vfsPaths;
   if (vfsPaths.length === 0) {
     return { stdout: '', stderr: '', exitCode: 1 };
   }
   const shouldPrefixFilePath = vfsPaths.length > 1;
 
-  // 5. Get slugs under directories
+  // Get slugs under directories
   const slugsUnderDirs = vfsPaths
-    .map((p) => elasticsearchFs.getChunkSlug(p))
+    .map((p) => elasticsearchFs.getFileSlug(p))
     .filter((s): s is string => s !== null);
-  // 6. Build coarse filter
+
+  // Build coarse filter
   const coarseFilter = {
     pattern: scannedArgs.pattern, // The raw user pattern text. Example: "OAuth.*token" (regex-like) or "OAuth token" (literal phrase).
     ignoreCase: scannedArgs.ignoreCase, // If true, matching ignores letter case. Example: pattern "OAuth" can match "oauth", "OAUTH", "oAuth".
     fixedStrings: scannedArgs.fixedStrings, // If true, metacharacters are literal text. Example: pattern "a+b" matches "a+b" (not regex "one or more a, then b").
   };
-  const isRegexPattern = !scannedArgs.fixedStrings && hasRegexMeta(scannedArgs.pattern);
+  const isRegexPattern =
+    !scannedArgs.fixedStrings && hasRegexMeta(scannedArgs.pattern);
 
-  // 1. Coarse Filter: Ask backing store for slugs matching the string/regex
+  // Coarse Filter: Ask backing store for slugs matching the string/regex
   let matchedSlugs: string[];
   try {
-    matchedSlugs = await elasticsearchFs.findMatchingFiles(coarseFilter, slugsUnderDirs);
+    matchedSlugs = await elasticsearchFs.findMatchingFiles(
+      coarseFilter,
+      slugsUnderDirs,
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return isRegexPattern
-      ? { stdout: '', stderr: `grep: invalid regular expression: ${msg}\n`, exitCode: 2 }
+      ? {
+          stdout: '',
+          stderr: `grep: invalid regular expression: ${msg}\n`,
+          exitCode: 2,
+        }
       : { stdout: '', stderr: `grep: ${msg}\n`, exitCode: 2 };
   }
   if (matchedSlugs.length === 0) return { stdout: '', stderr: '', exitCode: 1 };
 
-  // 2. Prefetch: Pull the chunked files into local cache concurrently
-  // TODO: await elasticsearchFs.bulkPrefetch(matchedSlugs);
 
-  // 3. Fine Filter: Narrow to resolved hit paths.
+  // Fine Filter: Narrow to resolved hit paths.
   const matchedPaths = matchedSlugs.map((slug) => slugToPath(slug));
-  //const narrowedArgs = [...reducedArgs, ...matchedPaths]; // e.g. ["-i", "OAuth", "/docs/auth.mdx"]
 
-  // 4. Exec: Let the in-memory RegExp engine format the final output
-  return execBuiltin(scannedArgs, matchedPaths, elasticsearchFs, shouldPrefixFilePath);
+  // Exec: Let the in-memory RegExp engine format the final output
+  return execBuiltin(
+    scannedArgs,
+    matchedPaths,
+    elasticsearchFs,
+    shouldPrefixFilePath,
+  );
 }

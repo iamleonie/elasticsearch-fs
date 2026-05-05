@@ -1,47 +1,45 @@
-import { Client, estypes } from "@elastic/elasticsearch";
-import { readFileSync } from "node:fs";
-import { readdir, readFile, stat } from "node:fs/promises";
-import path from "node:path";
-import { gzipSync } from "node:zlib";
+import { readFileSync } from 'node:fs';
+import { readdir, readFile, stat } from 'node:fs/promises';
+import path from 'node:path';
+import type { Client, estypes } from '@elastic/elasticsearch';
+import { pathToSlug } from '../core/path-tree.js';
 import {
-  ELASTICSEARCHFS_CHUNKS_INDEX,
+  ELASTICSEARCHFS_FILES_INDEX,
   ELASTICSEARCHFS_META_INDEX,
   ELASTICSEARCHFS_PATH_TREE_DOC_ID,
-  ELASTICSEARCHFS_PATH_TREE_ENCODING,
-} from "../elasticsearchfs-constants.js";
-import { pathToSlug } from "../core/path-tree.js";
-import type { JsonObject, PathTreePolicy } from "./path-tree-policy.js";
+} from '../elasticsearchfs-constants.js';
+import type { JsonObject, PathTreePolicy } from './path-tree-policy.js';
 
-const CHUNK_SIZE = 500;
-export const DEFAULT_DATA_ROOT = "./data";
+export const DEFAULT_DATA_ROOT = './data';
 
 /** Reads a JSON mapping file bundled alongside this module and returns it as a plain object. */
 function loadMappingFile(fileName: string): JsonObject {
-  const raw = readFileSync(new URL(`../es-adapter/${fileName}`, import.meta.url), "utf8");
+  const raw = readFileSync(
+    new URL(`../es-adapter/${fileName}`, import.meta.url),
+    'utf8',
+  );
   const parsed = JSON.parse(raw) as unknown;
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error(`Invalid ${fileName}: expected mapping object.`);
   }
   return parsed as JsonObject;
 }
 
-const elasticsearchfsChunksMapping = loadMappingFile("mappings.json");
-const elasticsearchfsMetaMapping = loadMappingFile("meta-mapping.json");
+const elasticsearchfsFilesMapping = loadMappingFile('mappings.json');
+const elasticsearchfsMetaMapping = loadMappingFile('meta-mapping.json');
 
 type IngestSummary = {
   files: number;
-  chunks: number;
   slugs: string[];
 };
 
-type ChunkDocument = {
+type FileDocument = {
   slug: string;
-  chunk_index: number;
   content: string;
   updated_at: string;
 };
 
-type BulkOperation = { index: { _index: string } } | ChunkDocument;
+type BulkOperation = { index: { _index: string } } | FileDocument;
 
 /** Recursively walks `rootDir` and returns absolute paths of all `.mdx` files, sorted alphabetically. */
 async function collectFiles(rootDir: string): Promise<string[]> {
@@ -57,7 +55,7 @@ async function collectFiles(rootDir: string): Promise<string[]> {
       }
       if (!entry.isFile()) continue;
       const ext = path.extname(entry.name).toLowerCase();
-      if (ext !== ".mdx") continue;
+      if (ext !== '.mdx') continue;
       out.push(fullPath);
     }
   }
@@ -67,27 +65,12 @@ async function collectFiles(rootDir: string): Promise<string[]> {
   return out;
 }
 
-/**
- * Splits `content` into fixed-size character chunks of at most `chunkSize` characters.
- * An empty string returns a single empty-string chunk to preserve document presence.
- */
-function splitIntoChunks(content: string, chunkSize: number): string[] {
-  if (chunkSize <= 0) {
-    throw new Error(`chunkSize must be > 0, got ${chunkSize}`);
-  }
-  if (content.length === 0) return [""];
-
-  const chunks: string[] = [];
-  for (let start = 0; start < content.length; start += chunkSize) {
-    const end = Math.min(content.length, start + chunkSize);
-    chunks.push(content.slice(start, end));
-    if (end >= content.length) break;
-  }
-  return chunks;
-}
-
 /** Drops the index if it already exists, then recreates it with the given mappings. */
-async function recreateIndex(client: Client, index: string, mappings: JsonObject): Promise<void> {
+async function recreateIndex(
+  client: Client,
+  index: string,
+  mappings: JsonObject,
+): Promise<void> {
   const exists = await client.indices.exists({ index });
   if (exists) {
     await client.indices.delete({ index });
@@ -98,20 +81,13 @@ async function recreateIndex(client: Client, index: string, mappings: JsonObject
 }
 
 /**
- * Serialises the path tree to JSON, compresses it with gzip, and returns the result as a base64
- * string. The compact encoding keeps the stored document small for a path tree that can be large.
- */
-function encodePathTreePayload(pathTree: PathTreePolicy): string {
-  const json = JSON.stringify(pathTree);
-  const gzipped = gzipSync(Buffer.from(json, "utf8"));
-  return gzipped.toString("base64");
-}
-
-/**
  * Writes the path tree as a single meta document with a fixed ID so it can be retrieved by ID
  * without a search query. `refresh: true` ensures it is immediately visible after indexing.
  */
-async function indexPathTreeDocument(client: Client, pathTree: PathTreePolicy): Promise<void> {
+async function indexPathTreeDocument(
+  client: Client,
+  pathTree: PathTreePolicy,
+): Promise<void> {
   const now = new Date().toISOString();
   await client.index({
     index: ELASTICSEARCHFS_META_INDEX,
@@ -120,19 +96,20 @@ async function indexPathTreeDocument(client: Client, pathTree: PathTreePolicy): 
     document: {
       doc_type: ELASTICSEARCHFS_PATH_TREE_DOC_ID,
       tree_version: now,
-      encoding: ELASTICSEARCHFS_PATH_TREE_ENCODING,
-      payload: encodePathTreePayload(pathTree),
+      payload: Buffer.from(JSON.stringify(pathTree), 'utf8').toString('base64'),
       created_at: now,
       updated_at: now,
     },
   });
-  console.log(`Indexed path tree doc "${ELASTICSEARCHFS_PATH_TREE_DOC_ID}" in "${ELASTICSEARCHFS_META_INDEX}".`);
+  console.log(
+    `Indexed path tree doc "${ELASTICSEARCHFS_PATH_TREE_DOC_ID}" in "${ELASTICSEARCHFS_META_INDEX}".`,
+  );
 }
 
 /**
  * Full ingest run: discovers all `.mdx` files under `options.dataRoot`, recreates both indices,
- * bulk-indexes all file chunks, and stores the path tree document.
- * Returns a summary of how many files, chunks, and slugs were processed.
+ * bulk-indexes one document per file, and stores the path tree document.
+ * Returns a summary of how many files and slugs were processed.
  */
 export async function runIngestPipeline(
   client: Client,
@@ -145,29 +122,32 @@ export async function runIngestPipeline(
     throw new Error(`No ingestible files found under ${dataRoot}.`);
   }
 
-  await recreateIndex(client, ELASTICSEARCHFS_META_INDEX, elasticsearchfsMetaMapping);
-  await recreateIndex(client, ELASTICSEARCHFS_CHUNKS_INDEX, elasticsearchfsChunksMapping);
+  await recreateIndex(
+    client,
+    ELASTICSEARCHFS_META_INDEX,
+    elasticsearchfsMetaMapping,
+  );
+  await recreateIndex(
+    client,
+    ELASTICSEARCHFS_FILES_INDEX,
+    elasticsearchfsFilesMapping,
+  );
 
   const operations: BulkOperation[] = [];
   const slugSet = new Set<string>();
 
   for (const filePath of files) {
     const rel = path.relative(resolvedDataRoot, filePath);
-    const slug = pathToSlug(rel.split(path.sep).join("/"));
+    const slug = pathToSlug(rel.split(path.sep).join('/'));
     slugSet.add(slug);
     const fileStat = await stat(filePath);
-    const content = await readFile(filePath, "utf8");
-    const chunks = splitIntoChunks(content, CHUNK_SIZE);
-
-    for (let i = 0; i < chunks.length; i += 1) {
-      operations.push({ index: { _index: ELASTICSEARCHFS_CHUNKS_INDEX } });
-      operations.push({
-        slug,
-        chunk_index: i,
-        content: chunks[i],
-        updated_at: fileStat.mtime.toISOString(),
-      });
-    }
+    const content = await readFile(filePath, 'utf8');
+    operations.push({ index: { _index: ELASTICSEARCHFS_FILES_INDEX } });
+    operations.push({
+      slug,
+      content,
+      updated_at: fileStat.mtime.toISOString(),
+    });
   }
 
   if (operations.length > 0) {
@@ -176,7 +156,9 @@ export async function runIngestPipeline(
       refresh: true,
     });
     if (bulkResponse.errors) {
-      throw new Error("Bulk ingest reported errors. Inspect Elasticsearch response for details.");
+      throw new Error(
+        'Bulk ingest reported errors. Inspect Elasticsearch response for details.',
+      );
     }
   }
 
@@ -184,9 +166,8 @@ export async function runIngestPipeline(
 
   const summary: IngestSummary = {
     files: files.length,
-    chunks: operations.length / 2,
     slugs: [...slugSet].sort(),
   };
-  console.log(`Indexed ${summary.chunks} chunks from ${summary.files} files.`);
+  console.log(`Indexed ${summary.files} files.`);
   return summary;
 }

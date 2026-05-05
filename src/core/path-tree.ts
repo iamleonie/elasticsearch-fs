@@ -3,10 +3,10 @@ import path from 'node:path/posix';
 /** Normalises backslashes to forward slashes, collapses repeated slashes, and strips a leading `./` and any trailing slashes. */
 function normalizeSlashesAndDots(input: string): string {
   return input
-    .replace(/\\/g, "/")
-    .replace(/\/+/g, "/")
-    .replace(/^\.\//, "")
-    .replace(/\/+$/g, "");
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/\/+$/g, '');
 }
 
 /*
@@ -14,7 +14,12 @@ function normalizeSlashesAndDots(input: string): string {
  */
 export function normalizeSlug(slug: string): string {
   const normalized = normalizeSlashesAndDots(slug);
-  const absolute = normalized === '' ? '/' : normalized.startsWith('/') ? normalized : `/${normalized}`;
+  const absolute =
+    normalized === ''
+      ? '/'
+      : normalized.startsWith('/')
+        ? normalized
+        : `/${normalized}`;
   if (absolute === '/') {
     throw new Error('Invalid slug: empty string.');
   }
@@ -26,7 +31,11 @@ export function normalizeSlug(slug: string): string {
  */
 export function normalizePath(filePath: string): string {
   const normalized = normalizeSlashesAndDots(filePath);
-  return normalized === '' ? '/' : normalized.startsWith('/') ? normalized : `/${normalized}`;
+  return normalized === ''
+    ? '/'
+    : normalized.startsWith('/')
+      ? normalized
+      : `/${normalized}`;
 }
 
 /**
@@ -79,9 +88,7 @@ export function buildFileTreeFromSlugs(slugs: Iterable<string>): {
     files.add(fp);
 
     const base = path.basename(fp);
-    let dir = path.dirname(fp);
-
-    if (dir === '.') dir = '/';
+    const dir = path.dirname(fp);
     addChild(dir, base);
 
     let current = dir;

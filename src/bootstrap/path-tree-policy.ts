@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { normalizeSlug } from "../core/path-tree.js";
+import { readFile } from 'node:fs/promises';
+import { normalizeSlug } from '../core/path-tree.js';
 
 export type JsonObject = Record<string, unknown>;
 
@@ -17,37 +17,46 @@ export type CompiledAccessPlan = {
 
 /** Strips trailing commas before object/array closers, then parses as JSON. Allows lax JSON that editors commonly produce. */
 function parseJsonWithTrailingCommaSupport(raw: string): unknown {
-  const sanitized = raw.replace(/,\s*([}\]])/g, "$1");
+  const sanitized = raw.replace(/,\s*([}\]])/g, '$1');
   return JSON.parse(sanitized) as unknown;
 }
 
 /** Validates and coerces a raw JSON value into a `PathTreeEntry`. Throws a descriptive error if `isPublic` or `groups` have the wrong shape. */
 function asPathTreeEntry(value: unknown, slug: string): PathTreeEntry {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`Invalid path tree entry for "${slug}": expected object.`);
   }
   const obj = value as JsonObject;
-  if (typeof obj.isPublic !== "boolean") {
-    throw new Error(`Invalid path tree entry for "${slug}": "isPublic" must be boolean.`);
+  if (typeof obj.isPublic !== 'boolean') {
+    throw new Error(
+      `Invalid path tree entry for "${slug}": "isPublic" must be boolean.`,
+    );
   }
-  if (!Array.isArray(obj.groups) || obj.groups.some((entry) => typeof entry !== "string")) {
-    throw new Error(`Invalid path tree entry for "${slug}": "groups" must be string[].`);
+  if (
+    !Array.isArray(obj.groups) ||
+    obj.groups.some((entry) => typeof entry !== 'string')
+  ) {
+    throw new Error(
+      `Invalid path tree entry for "${slug}": "groups" must be string[].`,
+    );
   }
   const groups = obj.groups.map((group) => group.trim()).filter(Boolean);
   return { isPublic: obj.isPublic, groups: [...new Set(groups)].sort() };
 }
 
 /** Reads a JSON file from disk and parses it as a `PathTreePolicy`. Accepts trailing commas. */
-export async function loadPathTreeAccessPolicy(path: string): Promise<PathTreePolicy> {
-  const raw = await readFile(path, "utf8");
+export async function loadPathTreeAccessPolicy(
+  path: string,
+): Promise<PathTreePolicy> {
+  const raw = await readFile(path, 'utf8');
   const parsed = parseJsonWithTrailingCommaSupport(raw);
   return parsePathTreeAccessPolicy(parsed);
 }
 
 /** Validates a parsed JSON value as a `PathTreePolicy`, normalising each slug via `normalizeSlug`. */
 export function parsePathTreeAccessPolicy(parsed: unknown): PathTreePolicy {
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Path tree policy must be an object.");
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Path tree policy must be an object.');
   }
 
   const out: PathTreePolicy = {};

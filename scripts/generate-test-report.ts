@@ -1,6 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { CommandCaseRecord, CommandExpectation } from '../tests/e2e-report-types.js';
+import type {
+  CommandCaseRecord,
+  CommandExpectation,
+} from '../tests/e2e-report-types.js';
 
 type VitestAssertion = {
   ancestorTitles?: string[];
@@ -24,7 +27,10 @@ type VitestReport = {
 
 const jsonlPath = resolve(process.cwd(), 'reports/e2e-command-report.jsonl');
 const markdownPath = resolve(process.cwd(), 'reports/e2e-command-report.md');
-const summaryPath = resolve(process.cwd(), 'reports/e2e-command-report-summary.json');
+const summaryPath = resolve(
+  process.cwd(),
+  'reports/e2e-command-report-summary.json',
+);
 const vitestResultsPath = resolve(process.cwd(), 'reports/vitest-results.json');
 
 type OverviewRow = {
@@ -44,10 +50,7 @@ type OverviewRow = {
 type OverviewRowsBySuite = Array<{ suite: string; rows: OverviewRow[] }>;
 
 function escapeTableCell(text: string): string {
-  return text
-    .replace(/\|/g, '\\|')
-    .replace(/\n/g, '<br>')
-    .replace(/\r/g, '');
+  return text.replace(/\|/g, '\\|').replace(/\n/g, '<br>').replace(/\r/g, '');
 }
 
 function clip(text: string, max = 140): string {
@@ -56,7 +59,10 @@ function clip(text: string, max = 140): string {
 }
 
 function formatStatusCell(status: OverviewRow['status']): string {
-  const styles: Record<OverviewRow['status'], { background: string; color: string }> = {
+  const styles: Record<
+    OverviewRow['status'],
+    { background: string; color: string }
+  > = {
     PASSED: { background: '#d1fae5', color: '#065f46' },
     FAILED: { background: '#fee2e2', color: '#991b1b' },
     SKIPPED: { background: '#e5e7eb', color: '#374151' },
@@ -97,7 +103,10 @@ function formatExpectation(expected: CommandExpectation): string {
 function parseRecords(): CommandCaseRecord[] {
   try {
     const raw = readFileSync(jsonlPath, 'utf8');
-    const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
+    const lines = raw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
     return lines.map((line) => JSON.parse(line) as CommandCaseRecord);
   } catch {
     return [];
@@ -135,7 +144,8 @@ function resolveVitestMetadata(
       'supports grep -ri "access_token" /': 'grep -ri "access_token" /',
       'supports grep -ri "webhook" /': 'grep -ri "webhook" /',
       'supports grep -ri "billing" /': 'grep -ri "billing" /',
-      'distinguishes regex matching from fixed-string matching': 'grep -r "access.token" /auth; grep -rF "access.token" /auth',
+      'distinguishes regex matching from fixed-string matching':
+        'grep -r "access.token" /auth; grep -rF "access.token" /auth',
       'returns grep parse/runtime errors with exit code 2': 'grep -r "(" /auth',
     };
     return {
@@ -159,18 +169,26 @@ function resolveVitestMetadata(
   }
 
   if (cleanedSuite === 'permissions e2e') {
-    if (test.includes('for PUBLIC')) return { profile: 'PUBLIC', command: 'fs.getVisibleFilePaths()' };
-    if (test.includes('for BILLING')) return { profile: 'BILLING', command: 'fs.getVisibleFilePaths()' };
-    if (test.includes('for INTERNAL')) return { profile: 'INTERNAL', command: 'fs.getVisibleFilePaths()' };
-    if (test.includes('for SYSTEM')) return { profile: 'SYSTEM', command: 'fs.getVisibleFilePaths()' };
-    const deniedMatch = test.match(/^denies\s+'?([A-Z]+)'?\s+access to\s+'?(.+?)'?$/u);
+    if (test.includes('for PUBLIC'))
+      return { profile: 'PUBLIC', command: 'fs.getVisibleFilePaths()' };
+    if (test.includes('for BILLING'))
+      return { profile: 'BILLING', command: 'fs.getVisibleFilePaths()' };
+    if (test.includes('for INTERNAL'))
+      return { profile: 'INTERNAL', command: 'fs.getVisibleFilePaths()' };
+    if (test.includes('for SYSTEM'))
+      return { profile: 'SYSTEM', command: 'fs.getVisibleFilePaths()' };
+    const deniedMatch = test.match(
+      /^denies\s+'?([A-Z]+)'?\s+access to\s+'?(.+?)'?$/u,
+    );
     if (deniedMatch) {
       return {
         profile: deniedMatch[1] ?? '-',
         command: `cat ${deniedMatch[2] ?? 'path'} -> ENOENT`,
       };
     }
-    const allowedMatch = test.match(/^allows\s+'?([A-Z]+)'?\s+access to\s+'?(.+?)'?$/u);
+    const allowedMatch = test.match(
+      /^allows\s+'?([A-Z]+)'?\s+access to\s+'?(.+?)'?$/u,
+    );
     if (allowedMatch) {
       return {
         profile: allowedMatch[1] ?? '-',
@@ -189,12 +207,18 @@ function collectVitestAssertions(vitestReport: VitestReport | null): Array<{
   status: string;
 }> {
   if (!vitestReport?.testResults) return [];
-  const assertions: Array<{ file: string; suite: string; test: string; status: string }> = [];
+  const assertions: Array<{
+    file: string;
+    suite: string;
+    test: string;
+    status: string;
+  }> = [];
   for (const suiteResult of vitestReport.testResults) {
     const file = suiteResult.name ?? '(unknown)';
     for (const assertion of suiteResult.assertionResults ?? []) {
       const suite =
-        Array.isArray(assertion.ancestorTitles) && assertion.ancestorTitles.length > 0
+        Array.isArray(assertion.ancestorTitles) &&
+        assertion.ancestorTitles.length > 0
           ? assertion.ancestorTitles.join(' > ')
           : '(no suite)';
       assertions.push({
@@ -210,7 +234,12 @@ function collectVitestAssertions(vitestReport: VitestReport | null): Array<{
 
 function buildOverviewRows(
   commandRecords: CommandCaseRecord[],
-  vitestAssertions: Array<{ file: string; suite: string; test: string; status: string }>,
+  vitestAssertions: Array<{
+    file: string;
+    suite: string;
+    test: string;
+    status: string;
+  }>,
 ): OverviewRow[] {
   const rows: OverviewRow[] = [];
   const seen = new Set<string>();
@@ -261,11 +290,13 @@ function groupOverviewRowsBySuite(rows: OverviewRow[]): OverviewRowsBySuite {
   const grouped = new Map<string, OverviewRow[]>();
   const order: string[] = [];
   for (const row of rows) {
-    if (!grouped.has(row.suite)) {
-      grouped.set(row.suite, []);
+    let bucket = grouped.get(row.suite);
+    if (!bucket) {
+      bucket = [];
+      grouped.set(row.suite, bucket);
       order.push(row.suite);
     }
-    grouped.get(row.suite)!.push(row);
+    bucket.push(row);
   }
   return order.map((suite) => ({ suite, rows: grouped.get(suite) ?? [] }));
 }
@@ -276,10 +307,12 @@ function main(): void {
   const vitestReport = parseVitestReport();
   const vitestAssertions = collectVitestAssertions(vitestReport);
   const skippedTests = vitestAssertions.filter((a) => a.status === 'skipped');
-  const overviewRows = buildOverviewRows(records, vitestAssertions).map((row, i) => ({
-    ...row,
-    displayId: `T${String(i + 1).padStart(3, '0')}`,
-  }));
+  const overviewRows = buildOverviewRows(records, vitestAssertions).map(
+    (row, i) => ({
+      ...row,
+      displayId: `T${String(i + 1).padStart(3, '0')}`,
+    }),
+  );
   const overviewRowsBySuite = groupOverviewRowsBySuite(overviewRows);
 
   const passed = records.filter((record) => record.status === 'passed').length;
@@ -294,7 +327,9 @@ function main(): void {
   markdown.push(`- Passed: ${passed}`);
   markdown.push(`- Failed: ${failed}`);
   markdown.push(`- Skipped: ${skippedTests.length}`);
-  markdown.push(`- Suites: ${suites.length > 0 ? suites.join(', ') : '(none)'}`);
+  markdown.push(
+    `- Suites: ${suites.length > 0 ? suites.join(', ') : '(none)'}`,
+  );
   if (vitestReport) {
     markdown.push(
       `- Vitest totals: total=${vitestReport.numTotalTests ?? 0}, passed=${vitestReport.numPassedTests ?? 0}, failed=${vitestReport.numFailedTests ?? 0}, skipped=${vitestReport.numPendingTests ?? 0}`,
@@ -305,7 +340,9 @@ function main(): void {
   markdown.push('');
 
   if (records.length === 0) {
-    markdown.push('No command cases were recorded. This usually means E2E tests were skipped.');
+    markdown.push(
+      'No command cases were recorded. This usually means E2E tests were skipped.',
+    );
   }
   markdown.push('');
   if (overviewRows.length > 0) {
@@ -377,9 +414,13 @@ function main(): void {
       markdown.push(`- status: ${row.status}`);
       markdown.push(`- vitestStatus: ${row.vitestStatus ?? 'unknown'}`);
       if (row.status === 'SKIPPED') {
-        markdown.push('- note: this test was skipped by Vitest in the last run');
+        markdown.push(
+          '- note: this test was skipped by Vitest in the last run',
+        );
       } else {
-        markdown.push('- note: this test result comes from Vitest status metadata');
+        markdown.push(
+          '- note: this test result comes from Vitest status metadata',
+        );
       }
       markdown.push('');
     }

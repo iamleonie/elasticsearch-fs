@@ -1,4 +1,4 @@
-export type Profile = "PUBLIC" | "BILLING" | "INTERNAL" | "SYSTEM";
+export type Profile = 'PUBLIC' | 'BILLING' | 'INTERNAL' | 'SYSTEM';
 
 export type CommandExpectation = {
   exitCode: number;
@@ -19,7 +19,7 @@ export type CommandCaseRecord = {
     stdout: string;
     stderr: string;
   };
-  status: "passed" | "failed";
+  status: 'passed' | 'failed';
   failures: string[];
   createdAt: string;
 };
