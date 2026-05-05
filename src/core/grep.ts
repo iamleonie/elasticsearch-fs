@@ -301,7 +301,7 @@ export async function runElasticGrep(
   ctx: CommandContext,
   elasticsearchFs: ElasticsearchFs,
 ): Promise<ExecResult> {
-  // 1. Parse arguments
+  // Parse arguments
   let scannedArgs: ParsedGrepArgv;
   try {
     scannedArgs = parseGrepArgv(args);
@@ -310,7 +310,7 @@ export async function runElasticGrep(
     return { stdout: '', stderr: `${msg}\n`, exitCode: 2 };
   }
 
-  // 2. List visible files for grep
+  // List visible files for grep
   const scope = await listVfsFilesForGrep(
     elasticsearchFs,
     ctx.cwd,
@@ -318,24 +318,24 @@ export async function runElasticGrep(
     scannedArgs.recursive,
   );
 
-  // 3. If no visible files, return early
+  // If no visible files, return early
   if (!scope.ok) {
     return { stdout: '', stderr: scope.stderr, exitCode: scope.exitCode };
   }
 
-  // 4. Get visible file paths
+  // Get visible file paths
   const vfsPaths = scope.vfsPaths;
   if (vfsPaths.length === 0) {
     return { stdout: '', stderr: '', exitCode: 1 };
   }
   const shouldPrefixFilePath = vfsPaths.length > 1;
 
-  // 5. Get slugs under directories
+  // Get slugs under directories
   const slugsUnderDirs = vfsPaths
     .map((p) => elasticsearchFs.getFileSlug(p))
     .filter((s): s is string => s !== null);
 
-  // 6. Build coarse filter
+  // Build coarse filter
   const coarseFilter = {
     pattern: scannedArgs.pattern, // The raw user pattern text. Example: "OAuth.*token" (regex-like) or "OAuth token" (literal phrase).
     ignoreCase: scannedArgs.ignoreCase, // If true, matching ignores letter case. Example: pattern "OAuth" can match "oauth", "OAUTH", "oAuth".
@@ -344,7 +344,7 @@ export async function runElasticGrep(
   const isRegexPattern =
     !scannedArgs.fixedStrings && hasRegexMeta(scannedArgs.pattern);
 
-  // 1. Coarse Filter: Ask backing store for slugs matching the string/regex
+  // Coarse Filter: Ask backing store for slugs matching the string/regex
   let matchedSlugs: string[];
   try {
     matchedSlugs = await elasticsearchFs.findMatchingFiles(
@@ -363,14 +363,11 @@ export async function runElasticGrep(
   }
   if (matchedSlugs.length === 0) return { stdout: '', stderr: '', exitCode: 1 };
 
-  // 2. Prefetch: Pull matched files into local cache concurrently
-  // TODO: await elasticsearchFs.bulkPrefetch(matchedSlugs);
 
-  // 3. Fine Filter: Narrow to resolved hit paths.
+  // Fine Filter: Narrow to resolved hit paths.
   const matchedPaths = matchedSlugs.map((slug) => slugToPath(slug));
-  //const narrowedArgs = [...reducedArgs, ...matchedPaths]; // e.g. ["-i", "OAuth", "/docs/auth.mdx"]
 
-  // 4. Exec: Let the in-memory RegExp engine format the final output
+  // Exec: Let the in-memory RegExp engine format the final output
   return execBuiltin(
     scannedArgs,
     matchedPaths,
